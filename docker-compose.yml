@@ -1,0 +1,26 @@
+# MinIO (S3-compatible object storage) for NIPMS documents
+# Start: docker compose up -d
+# Console: http://127.0.0.1:9001  (minioadmin / minioadmin)
+# Then set STORAGE_DRIVER=s3 in server/.env
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: nipms-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - nipms_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  nipms_minio_data:

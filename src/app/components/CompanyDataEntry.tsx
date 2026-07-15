@@ -2,15 +2,17 @@ import { useState } from 'react';
 import { Check, FileText, Target, TrendingUp, Users, Save } from 'lucide-react';
 import { Button } from './ui/button';
 import { PageHeader, Panel, PanelBody } from './layout/PageHeader';
-import { COMPANY_OPTIONS } from '../../data/mockData';
-import type { UserRole } from '../../types';
+import type { AuthUser } from '../../types';
+import { isMinistryRole } from '../../utils/roles';
 
 interface CompanyDataEntryProps {
-  userRole: UserRole;
+  user: AuthUser;
+  companies: string[];
 }
 
-export function CompanyDataEntry({ userRole }: CompanyDataEntryProps) {
-  const [selectedCompany, setSelectedCompany] = useState(COMPANY_OPTIONS[0]);
+export function CompanyDataEntry({ user, companies }: CompanyDataEntryProps) {
+  const companyOptions = companies.length > 0 ? companies : [user.companyName ?? 'Your company'];
+  const [selectedCompany, setSelectedCompany] = useState(companyOptions[0]);
   const [activeTab, setActiveTab] = useState<'financial' | 'kpi' | 'strategy' | 'governance'>('financial');
   const [saved, setSaved] = useState(false);
   const [formData, setFormData] = useState({
@@ -55,7 +57,7 @@ export function CompanyDataEntry({ userRole }: CompanyDataEntryProps) {
         }
       />
 
-      {userRole === 'admin' && (
+      {isMinistryRole(user.role) && (
         <Panel>
           <PanelBody>
             <label className="text-xs font-semibold uppercase tracking-wider text-slate-600">Select Entity</label>
@@ -64,7 +66,7 @@ export function CompanyDataEntry({ userRole }: CompanyDataEntryProps) {
               onChange={(e) => setSelectedCompany(e.target.value)}
               className="mt-2 w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20"
             >
-              {COMPANY_OPTIONS.map((company) => (
+              {companyOptions.map((company) => (
                 <option key={company} value={company}>{company}</option>
               ))}
             </select>

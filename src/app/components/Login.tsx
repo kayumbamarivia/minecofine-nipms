@@ -1,41 +1,190 @@
-import { useState } from 'react';
-import { Shield, Lock, Mail, Eye, EyeOff, Building2, Landmark } from 'lucide-react';
-import type { UserRole } from '../../types';
+import { useEffect, useMemo, useState } from 'react';
+import { Lock, Mail, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import type { AuthUser } from '../../types';
+import { RwandaFlag } from './brand/RwandaFlag';
+import { authApi } from '../../utils/services';
+import { ApiError, setToken } from '../../utils/api';
 
 interface LoginProps {
-  onLogin: (role: UserRole) => void;
+  onLogin: (user: AuthUser) => void;
 }
 
+type AuthScreen = 'login' | 'forgot' | 'reset' | 'verify' | 'resend';
+
+function readAuthParams() {
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get('auth');
+  const token = params.get('token') || '';
+  if (mode === 'reset' && token) return { screen: 'reset' as AuthScreen, token };
+  if (mode === 'verify' && token) return { screen: 'verify' as AuthScreen, token };
+  return { screen: 'login' as AuthScreen, token: '' };
+}
+
+function clearAuthParams() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('auth');
+  url.searchParams.delete('token');
+  window.history.replaceState({}, '', url.pathname);
+}
+
+const PASSWORD_HINT =
+  'At least 10 characters, with uppercase, lowercase and a number.';
+
 export function Login({ onLogin }: LoginProps) {
+  const initial = useMemo(() => readAuthParams(), []);
+  const [screen, setScreen] = useState<AuthScreen>(initial.screen);
+  const [token, setAuthToken] = useState(initial.token);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
 
-  const handleSubmit = (event: React.FormEvent) => {
+  useEffect(() => {
+    if (initial.screen === 'verify' && initial.token) {
+      void runVerify(initial.token);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const goLogin = () => {
+    clearAuthParams();
+    setScreen('login');
+    setError('');
+    setInfo('');
+    setAuthToken('');
+  };
+
+  const runVerify = async (verifyToken: string) => {
+    setLoading(true);
+    setError('');
+    setInfo('');
+    try {
+      const res = await authApi.verifyEmail(verifyToken);
+      setInfo(res.message);
+      clearAuthParams();
+      setScreen('login');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verification failed');
+      setScreen('resend');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
-    onLogin(selectedRole);
+    setLoading(true);
+    setError('');
+    setInfo('');
+    try {
+      const { token: jwt, user } = await authApi.login(email.trim(), password);
+      setToken(jwt);
+      onLogin(user);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        setError(err.message);
+        setScreen('resend');
+      } else {
+        setError(err instanceof Error ? err.message : 'Unable to sign in');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgot = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    setInfo('');
+    try {
+      const res = await authApi.forgotPassword(email.trim());
+      setInfo(res.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    setInfo('');
+    try {
+      const res = await authApi.resendVerification(email.trim());
+      setInfo(res.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Request failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReset = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setInfo('');
+    try {
+      const res = await authApi.resetPassword(token, newPassword);
+      setInfo(res.message);
+      clearAuthParams();
+      setScreen('login');
+      setPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Reset failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const titles: Record<AuthScreen, { title: string; subtitle: string }> = {
+    login: {
+      title: 'Sign In',
+      subtitle: 'Authorised access for company officers and MINECOFIN staff',
+    },
+    forgot: {
+      title: 'Reset password',
+      subtitle: 'We will send a secure link to your official email',
+    },
+    reset: {
+      title: 'Choose a new password',
+      subtitle: PASSWORD_HINT,
+    },
+    verify: {
+      title: 'Verifying email…',
+      subtitle: 'Please wait while we confirm your address',
+    },
+    resend: {
+      title: 'Verify your email',
+      subtitle: 'Accounts must confirm their address before first sign-in',
+    },
   };
 
   return (
     <div className="flex min-h-screen">
-      {/* ── Left brand panel (desktop) ── */}
       <aside className="relative hidden w-[46%] shrink-0 flex-col justify-between overflow-hidden bg-[#002b75] lg:flex">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[#fad201]/10 blur-3xl" />
           <div className="absolute -bottom-32 -left-20 h-[28rem] w-[28rem] rounded-full bg-[#00a651]/10 blur-3xl" />
-          <div
-            className="absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
-              backgroundSize: '32px 32px',
-            }}
-          />
         </div>
 
         <div className="relative z-10 p-10">
           <div className="flex items-center gap-4">
-            <RwandaEmblem />
+            <RwandaFlag size="md" className="rounded-xl" />
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-200/80">
                 Republic of Rwanda
@@ -50,22 +199,9 @@ export function Login({ onLogin }: LoginProps) {
             National Investment Portfolio Management System
           </h1>
           <p className="mt-5 max-w-md text-[15px] leading-relaxed text-blue-100/75">
-            Ministry of Finance and Economic Planning — oversee, monitor, and govern
-            state-owned enterprise investments nationwide.
+            Secure portfolio oversight for government equity investments — provisioned
+            accounts only, with email verification and password protections.
           </p>
-
-          <div className="mt-10 grid grid-cols-3 gap-4">
-            {[
-              { value: '6', label: 'Active SOEs' },
-              { value: '142.5B', label: 'Portfolio (RWF)' },
-              { value: '6', label: 'Ministries' },
-            ].map((stat) => (
-              <div key={stat.label} className="rounded-xl border border-white/10 bg-white/5 px-4 py-4 backdrop-blur-sm">
-                <p className="text-2xl font-bold text-[#fad201]">{stat.value}</p>
-                <p className="mt-1 text-[11px] text-blue-200/60">{stat.label}</p>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div className="relative z-10 border-t border-white/10 px-10 py-6">
@@ -75,13 +211,11 @@ export function Login({ onLogin }: LoginProps) {
         </div>
       </aside>
 
-      {/* ── Right sign-in panel ── */}
       <main className="flex flex-1 items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50/40 p-6 sm:p-10">
         <div className="w-full max-w-[420px]">
-          {/* Mobile header */}
           <div className="mb-8 text-center lg:hidden">
             <div className="mx-auto mb-4 flex w-fit items-center gap-3">
-              <RwandaEmblem size="sm" />
+              <RwandaFlag size="sm" className="rounded-xl" />
               <div className="text-left">
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-[#003da5]">
                   Republic of Rwanda
@@ -91,9 +225,7 @@ export function Login({ onLogin }: LoginProps) {
             </div>
           </div>
 
-          {/* Card */}
           <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-300/30">
-            {/* Rwanda colour stripe */}
             <div className="flex h-1.5">
               <div className="flex-1 bg-[#003da5]" />
               <div className="w-1/3 bg-[#fad201]" />
@@ -101,129 +233,198 @@ export function Login({ onLogin }: LoginProps) {
             </div>
 
             <div className="p-8">
+              {screen !== 'login' && screen !== 'verify' && (
+                <button
+                  type="button"
+                  onClick={goLogin}
+                  className="mb-4 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Back to sign in
+                </button>
+              )}
+
               <div className="mb-7">
-                <h2 className="font-serif text-2xl font-bold text-slate-900">Sign In</h2>
-                <p className="mt-1.5 text-sm text-slate-500">
-                  Secure access to the national investment portfolio
-                </p>
+                <h2 className="font-serif text-2xl font-bold text-slate-900">
+                  {titles[screen].title}
+                </h2>
+                <p className="mt-1.5 text-sm text-slate-500">{titles[screen].subtitle}</p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Role selector */}
-                <fieldset>
-                  <legend className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Access Level
-                  </legend>
-                  <div className="grid grid-cols-2 gap-2.5">
-                    {([
-                      { role: 'admin' as const, label: 'MINECOFIN', sub: 'Portfolio Director', icon: Landmark },
-                      { role: 'company' as const, label: 'SOE Portal', sub: 'Company User', icon: Building2 },
-                    ]).map((option) => {
-                      const active = selectedRole === option.role;
-                      const Icon = option.icon;
-                      return (
-                        <button
-                          key={option.role}
-                          type="button"
-                          onClick={() => setSelectedRole(option.role)}
-                          className={`flex flex-col items-start gap-1 rounded-xl border-2 px-3.5 py-3 text-left transition-all duration-150 ${
-                            active
-                              ? 'border-[#003da5] bg-[#003da5]/5 shadow-sm'
-                              : 'border-slate-200 bg-slate-50/50 hover:border-slate-300 hover:bg-white'
-                          }`}
-                        >
-                          <Icon className={`h-4 w-4 ${active ? 'text-[#003da5]' : 'text-slate-400'}`} />
-                          <span className={`text-sm font-semibold ${active ? 'text-[#003da5]' : 'text-slate-800'}`}>
-                            {option.label}
-                          </span>
-                          <span className="text-[11px] text-slate-500">{option.sub}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </fieldset>
-
-                {/* Email */}
-                <div>
-                  <label htmlFor="email" className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
-                    <input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@minecofin.gov.rw"
-                      className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#003da5] focus:bg-white focus:ring-2 focus:ring-[#003da5]/15"
-                    />
-                  </div>
+              {error && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {error}
                 </div>
+              )}
+              {info && (
+                <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                  {info}
+                </div>
+              )}
 
-                {/* Password */}
-                <div>
-                  <label htmlFor="password" className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
-                    <input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-11 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#003da5] focus:bg-white focus:ring-2 focus:ring-[#003da5]/15"
-                    />
+              {screen === 'login' && (
+                <form onSubmit={handleLogin} className="space-y-5">
+                  <EmailField value={email} onChange={setEmail} />
+                  <PasswordField
+                    id="password"
+                    label="Password"
+                    value={password}
+                    onChange={setPassword}
+                    show={showPassword}
+                    onToggle={() => setShowPassword((v) => !v)}
+                  />
+                  <div className="flex justify-end">
                     <button
                       type="button"
-                      tabIndex={-1}
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600"
+                      onClick={() => {
+                        setScreen('forgot');
+                        setError('');
+                        setInfo('');
+                      }}
+                      className="text-xs font-medium text-[#003da5] hover:underline"
                     >
-                      {showPassword ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+                      Forgot password?
                     </button>
                   </div>
-                </div>
+                  <SubmitButton loading={loading} label="Sign In" />
+                </form>
+              )}
 
-                <button
-                  type="submit"
-                  className="mt-1 w-full rounded-xl bg-[#003da5] py-3 text-sm font-semibold text-white shadow-md shadow-[#003da5]/25 transition hover:bg-[#002b75] active:scale-[0.99]"
-                >
-                  Sign In to NIPMS
-                </button>
-              </form>
+              {screen === 'forgot' && (
+                <form onSubmit={handleForgot} className="space-y-5">
+                  <EmailField value={email} onChange={setEmail} />
+                  <SubmitButton loading={loading} label="Send reset link" />
+                </form>
+              )}
 
-              <div className="mt-6 rounded-xl bg-slate-50 px-4 py-3.5">
-                <p className="text-xs font-semibold text-slate-700">Demo Access</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-                  Use any credentials. MINECOFIN unlocks all modules; SOE Portal shows company-level access.
+              {screen === 'resend' && (
+                <form onSubmit={handleResend} className="space-y-5">
+                  <EmailField value={email} onChange={setEmail} />
+                  <SubmitButton loading={loading} label="Resend verification email" />
+                </form>
+              )}
+
+              {screen === 'reset' && (
+                <form onSubmit={handleReset} className="space-y-5">
+                  <PasswordField
+                    id="new-password"
+                    label="New password"
+                    value={newPassword}
+                    onChange={setNewPassword}
+                    show={showPassword}
+                    onToggle={() => setShowPassword((v) => !v)}
+                  />
+                  <PasswordField
+                    id="confirm-password"
+                    label="Confirm password"
+                    value={confirmPassword}
+                    onChange={setConfirmPassword}
+                    show={showPassword}
+                    onToggle={() => setShowPassword((v) => !v)}
+                  />
+                  <SubmitButton loading={loading} label="Update password" />
+                </form>
+              )}
+
+              {screen === 'verify' && (
+                <p className="text-sm text-slate-600">
+                  {loading ? 'Confirming your email address…' : 'Verification complete.'}
                 </p>
-              </div>
+              )}
+
+              {!info && screen === 'login' && (
+                <p className="mt-6 text-center text-xs text-slate-400">
+                  No public signup — accounts are provisioned by ministry administrators.
+                </p>
+              )}
             </div>
           </div>
-
-          <p className="mt-6 text-center text-[11px] text-slate-400">
-            Ministry of Finance and Economic Planning · Kigali, Rwanda
-          </p>
         </div>
       </main>
     </div>
   );
 }
 
-function RwandaEmblem({ size = 'md' }: { size?: 'sm' | 'md' }) {
-  const dim = size === 'sm' ? 'h-11 w-11' : 'h-14 w-14';
-  const icon = size === 'sm' ? 'h-5 w-5' : 'h-7 w-7';
+function EmailField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <div className={`relative flex ${dim} shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-lg`}>
-      <div className="absolute inset-0 flex flex-col">
-        <div className="h-1/3 bg-[#003da5]" />
-        <div className="h-1/3 bg-[#fad201]" />
-        <div className="h-1/3 bg-[#00a651]" />
+    <div>
+      <label
+        htmlFor="email"
+        className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-slate-500"
+      >
+        Official Email Address
+      </label>
+      <div className="relative">
+        <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
+        <input
+          id="email"
+          type="email"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="name@minecofin.gov.rw"
+          required
+          autoComplete="username"
+          className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-[#003da5] focus:bg-white focus:ring-2 focus:ring-[#003da5]/15"
+        />
       </div>
-      <Shield className={`relative ${icon} text-[#003da5]`} />
     </div>
+  );
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  show,
+  onToggle,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div>
+      <label
+        htmlFor={id}
+        className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-slate-500"
+      >
+        {label}
+      </label>
+      <div className="relative">
+        <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
+        <input
+          id={id}
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          required
+          autoComplete={id.includes('new') || id.includes('confirm') ? 'new-password' : 'current-password'}
+          className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-11 text-sm text-slate-900 outline-none transition focus:border-[#003da5] focus:bg-white focus:ring-2 focus:ring-[#003da5]/15"
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          aria-label={show ? 'Hide password' : 'Show password'}
+        >
+          {show ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SubmitButton({ loading, label }: { loading: boolean; label: string }) {
+  return (
+    <button
+      type="submit"
+      disabled={loading}
+      className="flex w-full items-center justify-center rounded-xl bg-[#003da5] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#002b75] disabled:opacity-60"
+    >
+      {loading ? 'Please wait…' : label}
+    </button>
   );
 }

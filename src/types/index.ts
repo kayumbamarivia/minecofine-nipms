@@ -1,3 +1,111 @@
+export type UserRole =
+  | 'company_submitter'
+  | 'company_approver'
+  | 'portfolio_analyst'
+  | 'department_head'
+  | 'leadership';
+
+export type SubmissionType =
+  | 'soe_creation'
+  | 'profile_update'
+  | 'planning_budgeting'
+  | 'quarterly_report'
+  | 'annual_report';
+
+export type SubmissionStatus =
+  | 'draft'
+  | 'pending_company_approval'
+  | 'pending_ministry_review'
+  | 'pending_department_approval'
+  | 'approved'
+  | 'returned';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: UserRole;
+  title?: string;
+  companyId: string | null;
+  companyName?: string | null;
+  emailVerified?: boolean;
+  mustChangePassword?: boolean;
+}
+
+export interface ManagedUser extends AuthUser {
+  isActive: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Company {
+  id: string;
+  code: string;
+  name: string;
+  sector: string;
+  status: string;
+  location: string | null;
+  province: string | null;
+  ministry: string | null;
+  description: string | null;
+  investmentAmount: number | null;
+  ownershipPct: number | null;
+  ceoName: string | null;
+  cfoName: string | null;
+  boardChair: string | null;
+  createdDate: string | null;
+}
+
+export interface Submission {
+  id: string;
+  companyId: string;
+  companyName: string;
+  companyCode: string;
+  type: SubmissionType;
+  title: string;
+  period: string | null;
+  status: SubmissionStatus;
+  workflowStage: string;
+  payload: Record<string, unknown>;
+  submittedBy: string | null;
+  submittedByName: string | null;
+  reviewedBy: string | null;
+  comments: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkflowEvent {
+  id: string;
+  submissionId: string;
+  actorName: string;
+  action: string;
+  comment: string | null;
+  fromStatus: string | null;
+  toStatus: string | null;
+  createdAt: string;
+}
+
+export interface DashboardSummary {
+  totalCompanies: number;
+  activeCompanies: number;
+  pendingSubmissions: number;
+  approvedThisQuarter: number;
+  portfolioValue: number;
+  submissionsByStatus: Record<string, number>;
+  sectorAllocation: Array<{ name: string; value: number }>;
+  companies: Array<{
+    id: string;
+    code: string;
+    name: string;
+    sector: string;
+    investmentAmount: number;
+    status: string;
+  }>;
+  recentSubmissions: Submission[];
+}
+
 export type PipelineStatus =
   | 'proposed'
   | 'review'
@@ -82,14 +190,15 @@ export interface Document {
   fileSize?: string;
 }
 
-export type UserRole = 'admin' | 'company';
-
 export type AppView =
   | 'dashboard'
   | 'portfolio'
-  | 'activities'
+  | 'submissions'
+  | 'processes'
+  | 'action-points'
   | 'documents'
-  | 'data-entry'
+  | 'reports'
+  | 'users'
   | 'consolidated'
   | 'operations'
   | 'executive'
@@ -104,3 +213,56 @@ export interface MinistryPartner {
   lastSync: string;
   status: 'connected' | 'pending' | 'offline';
 }
+
+export interface ActionPoint {
+  id: string;
+  companyId: string;
+  companyName: string;
+  submissionId: string | null;
+  title: string;
+  description: string;
+  category: 'financial' | 'operational' | 'governance' | 'other';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: 'open' | 'in_progress' | 'resolved' | 'overdue';
+  dueDate: string | null;
+  raisedBy: string;
+  raisedByName: string;
+  assignedTo: string;
+  resolutionNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type StoredDocumentCategory =
+  | 'business_case'
+  | 'business_plan'
+  | 'registration_certificate'
+  | 'shareholder_agreement'
+  | 'articles_of_association'
+  | 'performance_contract'
+  | 'budget_action_plan'
+  | 'strategic_plan'
+  | 'signed_financial_statements'
+  | 'board_minutes'
+  | 'investment_memo'
+  | 'other';
+
+export interface StoredDocument {
+  id: string;
+  companyId: string;
+  companyName: string;
+  submissionId: string | null;
+  name: string;
+  category: StoredDocumentCategory;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  storageDriver?: 'local' | 's3';
+  notes: string | null;
+  uploadedBy: string;
+  uploadedByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+

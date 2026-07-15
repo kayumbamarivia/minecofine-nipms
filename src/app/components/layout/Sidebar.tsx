@@ -9,39 +9,89 @@ import {
   Crown,
   Building2,
   ChevronRight,
+  GitBranch,
+  LineChart,
+  Users,
 } from 'lucide-react';
-import type { AppView, UserRole } from '../../../types';
+import type { AppView, AuthUser } from '../../../types';
+import { RwandaFlag } from '../brand/RwandaFlag';
+import {
+  canCreateSubmission,
+  canViewLeadershipDashboards,
+  isCompanyRole,
+  isMinistryRole,
+} from '../../../utils/roles';
 
 interface SidebarProps {
   currentView: AppView;
   onNavigate: (view: AppView) => void;
-  userRole: UserRole;
+  user: AuthUser;
 }
 
 interface NavItem {
   key: AppView;
   label: string;
   icon: typeof LayoutDashboard;
-  adminOnly?: boolean;
+  show?: (user: AuthUser) => boolean;
 }
 
 const mainNav: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'portfolio', label: 'Investment Portfolio', icon: Briefcase },
-  { key: 'activities', label: 'Activities & Tasks', icon: CheckSquare },
+  { key: 'submissions', label: 'Submissions & Approvals', icon: GitBranch },
+  {
+    key: 'processes',
+    label: 'Submission Workspace',
+    icon: ClipboardEdit,
+    show: (u) => canCreateSubmission(u.role),
+  },
+  { key: 'action-points', label: 'Action Points', icon: CheckSquare },
   { key: 'documents', label: 'Document Registry', icon: FileText },
-  { key: 'data-entry', label: 'Data Entry', icon: ClipboardEdit },
+  {
+    key: 'reports',
+    label: 'Reports & Extracts',
+    icon: LineChart,
+    show: (u) => canViewLeadershipDashboards(u.role) || isCompanyRole(u.role),
+  },
+  {
+    key: 'users',
+    label: 'User Administration',
+    icon: Users,
+    show: (u) => isMinistryRole(u.role),
+  },
 ];
 
-const adminNav: NavItem[] = [
-  { key: 'consolidated', label: 'Consolidated View', icon: BarChart3, adminOnly: true },
-  { key: 'operations', label: 'Operations', icon: Activity, adminOnly: true },
-  { key: 'executive', label: 'Executive Briefing', icon: Crown, adminOnly: true },
-  { key: 'inter-ministerial', label: 'Inter-Ministerial Hub', icon: Building2, adminOnly: true },
+const leadershipNav: NavItem[] = [
+  {
+    key: 'consolidated',
+    label: 'Consolidated View',
+    icon: BarChart3,
+    show: (u) => canViewLeadershipDashboards(u.role),
+  },
+  {
+    key: 'operations',
+    label: 'Operations',
+    icon: Activity,
+    show: (u) => canViewLeadershipDashboards(u.role),
+  },
+  {
+    key: 'executive',
+    label: 'Executive Briefing',
+    icon: Crown,
+    show: (u) => canViewLeadershipDashboards(u.role),
+  },
+  {
+    key: 'inter-ministerial',
+    label: 'Inter-Ministerial Hub',
+    icon: Building2,
+    show: (u) => canViewLeadershipDashboards(u.role),
+  },
 ];
 
-export function Sidebar({ currentView, onNavigate, userRole }: SidebarProps) {
+export function Sidebar({ currentView, onNavigate, user }: SidebarProps) {
   const renderNavItem = (item: NavItem) => {
+    if (item.show && !item.show(user)) return null;
+
     const isActive = currentView === item.key;
     const Icon = item.icon;
 
@@ -55,32 +105,29 @@ export function Sidebar({ currentView, onNavigate, userRole }: SidebarProps) {
             : 'text-blue-100/80 hover:bg-white/10 hover:text-white'
         }`}
       >
-        <Icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? 'text-rw-yellow' : 'text-blue-200/70 group-hover:text-blue-100'}`} />
+        <Icon
+          className={`h-[18px] w-[18px] shrink-0 ${
+            isActive ? 'text-rw-yellow' : 'text-blue-200/70 group-hover:text-blue-100'
+          }`}
+        />
         <span className="flex-1">{item.label}</span>
         {isActive && <ChevronRight className="h-4 w-4 text-rw-yellow" />}
       </button>
     );
   };
 
+  const visibleLeadership = leadershipNav.some((item) => !item.show || item.show(user));
+
   return (
     <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 flex-col bg-gradient-to-b from-rw-blue-dark via-rw-blue to-rw-blue-dark lg:flex">
       <div className="border-b border-white/10 px-5 py-5">
         <div className="flex items-center gap-3">
-          <div className="relative flex h-11 w-11 items-center justify-center rounded-lg bg-white shadow-lg">
-            <div className="absolute inset-0 overflow-hidden rounded-lg">
-              <div className="absolute left-0 top-0 h-1/3 w-full bg-rw-blue" />
-              <div className="absolute left-0 top-1/3 h-1/3 w-full bg-rw-yellow" />
-              <div className="absolute left-0 top-2/3 h-1/3 w-full bg-rw-green" />
-            </div>
-            <span className="relative text-[10px] font-bold text-rw-blue-dark">RW</span>
-          </div>
+          <RwandaFlag size="sm" />
           <div className="min-w-0">
             <p className="truncate text-[11px] font-medium uppercase tracking-wider text-blue-200/70">
               Republic of Rwanda
             </p>
-            <p className="truncate text-sm font-semibold leading-tight text-white">
-              NIPMS
-            </p>
+            <p className="truncate text-sm font-semibold leading-tight text-white">NIPMS</p>
           </div>
         </div>
         <p className="mt-3 text-[11px] leading-relaxed text-blue-200/60">
@@ -94,23 +141,23 @@ export function Sidebar({ currentView, onNavigate, userRole }: SidebarProps) {
         </p>
         {mainNav.map(renderNavItem)}
 
-        {userRole === 'admin' && (
+        {visibleLeadership && (
           <>
             <div className="my-4 border-t border-white/10" />
             <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-blue-300/50">
-              Administration
+              Leadership & Analytics
             </p>
-            {adminNav.map(renderNavItem)}
+            {leadershipNav.map(renderNavItem)}
           </>
         )}
       </nav>
 
       <div className="border-t border-white/10 p-4">
         <div className="rounded-lg bg-white/10 p-3">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-blue-200/60">Ministry</p>
-          <p className="mt-1 text-xs font-semibold leading-snug text-white">
-            Ministry of Finance and Economic Planning
+          <p className="text-[10px] font-medium uppercase tracking-wider text-blue-200/60">
+            {user.companyName ?? 'MINECOFIN'}
           </p>
+          <p className="mt-1 text-xs font-semibold leading-snug text-white">{user.fullName}</p>
           <p className="mt-2 text-[10px] text-blue-200/50">Kigali, Rwanda</p>
         </div>
       </div>

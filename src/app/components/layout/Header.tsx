@@ -1,19 +1,23 @@
-import { Bell, LogOut, Search, User } from 'lucide-react';
+import { Bell, KeyRound, LogOut, Search, User } from 'lucide-react';
 import { Button } from '../ui/button';
-import type { UserRole } from '../../../types';
+import type { AuthUser } from '../../../types';
+import { ROLE_SHORT } from '../../../utils/roles';
 
 interface HeaderProps {
-  userRole: UserRole;
+  user: AuthUser;
   onLogout: () => void;
+  onChangePassword?: () => void;
 }
 
-export function Header({ userRole, onLogout }: HeaderProps) {
+export function Header({ user, onLogout, onChangePassword }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur-md">
       <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <div className="min-w-0 flex-1">
           <div className="lg:hidden">
-            <p className="text-xs font-medium uppercase tracking-wider text-rw-blue">MINECOFIN</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-rw-blue">
+              {user.companyName ?? 'MINECOFIN'}
+            </p>
             <p className="truncate text-sm font-semibold text-slate-900">NIPMS</p>
           </div>
           <div className="relative hidden max-w-md lg:block">
@@ -41,14 +45,17 @@ export function Header({ userRole, onLogout }: HeaderProps) {
               <User className="h-4 w-4" />
             </div>
             <div className="text-left">
-              <p className="text-xs font-semibold text-slate-900">
-                {userRole === 'admin' ? 'Portfolio Director' : 'SOE Representative'}
-              </p>
-              <p className="text-[10px] text-slate-500">
-                {userRole === 'admin' ? 'MINECOFIN — Admin' : 'Company Portal'}
-              </p>
+              <p className="text-xs font-semibold text-slate-900">{user.fullName}</p>
+              <p className="text-[10px] text-slate-500">{ROLE_SHORT[user.role]}</p>
             </div>
           </div>
+
+          {onChangePassword && (
+            <Button variant="outline" size="sm" onClick={onChangePassword} className="gap-1.5">
+              <KeyRound className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Password</span>
+            </Button>
+          )}
 
           <Button variant="outline" size="sm" onClick={onLogout} className="gap-1.5">
             <LogOut className="h-3.5 w-3.5" />

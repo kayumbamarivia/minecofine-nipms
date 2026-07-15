@@ -1,100 +1,95 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Input } from './components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
 import { PipelineCard } from './components/PipelineCard';
-import { ActivityList } from './components/ActivityList';
 import { CompanyDetailsModal } from './components/CompanyDetailsModal';
 import { Dashboard } from './components/Dashboard';
-import { CompanyDataEntry } from './components/CompanyDataEntry';
-import { ConsolidatedView } from './components/ConsolidatedView';
-import { OperationalDashboard } from './components/OperationalDashboard';
-import { ExecutiveDashboard } from './components/ExecutiveDashboard';
-import { DocumentTracker } from './components/DocumentTracker';
-import { InterMinisterialPanel } from './components/InterMinisterialPanel';
+import { ProcessWorkspace } from './components/ProcessWorkspace';
+import { SubmissionsPanel } from './components/SubmissionsPanel';
+import { ActionPointsPanel } from './components/ActionPointsPanel';
+import { DocumentRegistry } from './components/DocumentRegistry';
+import { ReportsCentre } from './components/ReportsCentre';
+import { UserAdminPanel } from './components/UserAdminPanel';
+import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { Login } from './components/Login';
 import { AppShell } from './components/layout/AppShell';
 import { PageHeader } from './components/layout/PageHeader';
 import { Toaster, toast } from 'sonner';
-import { localStorageAPI } from '../utils/localStorage';
-import { RWANDA_PORTFOLIO, RWANDA_ACTIVITIES, RWANDA_DOCUMENTS } from '../data/mockData';
-import type { Activity, AppView, Document, PipelineItem, UserRole } from '../types';
+import { clearToken, getToken } from '../utils/api';
+import { authApi, companiesApi, dashboardApi, submissionsApi } from '../utils/services';
+import {
+  approvalLevelFor,
+  canViewLeadershipDashboards,
+  companyToPipelineItem,
+  greetingFor,
+  isMinistryRole,
+} from '../utils/roles';
+import type {
+  AppView,
+  AuthUser,
+  Company,
+  DashboardSummary,
+  PipelineItem,
+  Submission,
+} from '../types';
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [booting, setBooting] = useState(true);
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
-  const [userRole, setUserRole] = useState<UserRole>('admin');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | PipelineItem['status']>('all');
   const [pipeline, setPipeline] = useState<PipelineItem[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<PipelineItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
-  useEffect(() => {
-    void loadData();
+  const loadApiData = useCallback(async () => {
+    const [companiesRes, submissionsRes, summaryRes] = await Promise.all([
+      companiesApi.list(),
+      submissionsApi.list(),
+      dashboardApi.summary(),
+    ]);
+
+    setCompanies(companiesRes.data);
+    setPipeline(companiesRes.data.map(companyToPipelineItem));
+    setSubmissions(submissionsRes.data);
+    setSummary(summaryRes.data);
   }, []);
 
-  const loadData = async () => {
-    try {
-      const [pipelineRes, activitiesRes, documentsRes] = await Promise.all([
-        localStorageAPI.getPipeline(),
-        localStorageAPI.getActivities(),
-        localStorageAPI.getDocuments(),
-      ]);
-
-      const pipelineData = pipelineRes.data ?? [];
-      const activitiesData = activitiesRes.data ?? [];
-      const documentsData = documentsRes.data ?? [];
-
-      if (pipelineData.length === 0 && activitiesData.length === 0 && documentsData.length === 0) {
-        await localStorageAPI.initialize({
-          pipeline: RWANDA_PORTFOLIO,
-          activities: RWANDA_ACTIVITIES,
-          documents: RWANDA_DOCUMENTS,
-        });
-        setPipeline(RWANDA_PORTFOLIO);
-        setActivities(RWANDA_ACTIVITIES);
-        setDocuments(RWANDA_DOCUMENTS);
-        toast.success('Portfolio data initialized');
-      } else {
-        setPipeline(pipelineData);
-        setActivities(activitiesData);
-        setDocuments(documentsData);
+  useEffect(() => {
+    const boot = async () => {
+      if (!getToken()) {
+        setBooting(false);
+        return;
       }
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to load portfolio data');
-      setPipeline(RWANDA_PORTFOLIO);
-      setActivities(RWANDA_ACTIVITIES);
-      setDocuments(RWANDA_DOCUMENTS);
-    }
-  };
+      try {
+        const { user: me } = await authApi.me();
+        setUser(me);
+        await loadApiData();
+      } catch {
+        clearToken();
+      } finally {
+        setBooting(false);
+      }
+    };
+    void boot();
+  }, [loadApiData]);
 
-  const handleLogin = (role: UserRole) => {
-    setIsLoggedIn(true);
-    setUserRole(role);
+  const handleLogin = async (loggedInUser: AuthUser) => {
+    setUser(loggedInUser);
     setCurrentView('dashboard');
-    toast.success(`Welcome — signed in as ${role === 'admin' ? 'MINECOFIN Portfolio Director' : 'SOE Representative'}`);
+    toast.success(`Welcome — ${greetingFor(loggedInUser)}`);
+    await loadApiData();
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
+    clearToken();
+    setUser(null);
     setCurrentView('dashboard');
-  };
-
-  const handleToggleComplete = async (id: string) => {
-    const activity = activities.find((item) => item.id === id);
-    if (!activity) return;
-
-    const updated: Activity = {
-      ...activity,
-      status: activity.status === 'completed' ? 'pending' : 'completed',
-      completedDate: activity.status === 'completed' ? undefined : new Date().toISOString().split('T')[0],
-    };
-    await localStorageAPI.updateActivity(id, updated);
-    setActivities((prev) => prev.map((item) => (item.id === id ? updated : item)));
-    toast.success(activity.status === 'completed' ? 'Activity reopened' : 'Activity completed');
   };
 
   const filteredPipeline = pipeline.filter((item) => {
@@ -107,10 +102,15 @@ export default function App() {
     return matchesSearch && matchesFilter;
   });
 
-  const getCompanyDocuments = (companyName: string) =>
-    documents.filter((doc) => doc.relatedDeal === companyName);
+  if (booting) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">
+        Loading NIPMS…
+      </div>
+    );
+  }
 
-  if (!isLoggedIn) {
+  if (!user) {
     return (
       <>
         <Login onLogin={handleLogin} />
@@ -119,16 +119,41 @@ export default function App() {
     );
   }
 
+  const companyOptions = companies.map((c) => ({ id: c.id, name: c.name, code: c.code }));
+
   return (
-    <AppShell currentView={currentView} onNavigate={setCurrentView} userRole={userRole} onLogout={handleLogout}>
-      {currentView === 'dashboard' && <Dashboard />}
-      {currentView === 'data-entry' && <CompanyDataEntry userRole={userRole} />}
+    <AppShell
+      currentView={currentView}
+      onNavigate={setCurrentView}
+      user={user}
+      onLogout={handleLogout}
+      onChangePassword={() => setShowChangePassword(true)}
+    >
+      {currentView === 'dashboard' && <Dashboard summary={summary} user={user} />}
+      {currentView === 'processes' && (
+        <ProcessWorkspace user={user} companies={companyOptions} onCreated={loadApiData} />
+      )}
+      {currentView === 'submissions' && (
+        <SubmissionsPanel user={user} submissions={submissions} onRefresh={loadApiData} />
+      )}
+      {currentView === 'action-points' && (
+        <ActionPointsPanel user={user} companies={companyOptions} />
+      )}
+      {currentView === 'documents' && (
+        <DocumentRegistry user={user} companies={companyOptions} />
+      )}
+      {currentView === 'reports' && (
+        <ReportsCentre user={user} companies={companyOptions} />
+      )}
+      {currentView === 'users' && isMinistryRole(user.role) && (
+        <UserAdminPanel user={user} companies={companyOptions} />
+      )}
       {currentView === 'portfolio' && (
         <div className="space-y-6">
           <PageHeader
             badge="Portfolio"
             title="Investment Portfolio"
-            description="Search, filter, and inspect state-owned enterprise investments across the Government of Rwanda portfolio."
+            description="State-owned enterprise registry — search, filter, and inspect portfolio entities."
           />
           <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
             <div className="flex-1">
@@ -140,16 +165,18 @@ export default function App() {
               />
             </div>
             <div className="w-full sm:w-56">
-              <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}>
-                <SelectTrigger><SelectValue placeholder="Filter by status" /></SelectTrigger>
+              <Select
+                value={filterStatus}
+                onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="proposed">Proposed</SelectItem>
-                  <SelectItem value="review">Under Review</SelectItem>
-                  <SelectItem value="hod_approval">HoD Approval</SelectItem>
-                  <SelectItem value="ministerial_approval">Ministerial Approval</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="review">Under Review</SelectItem>
+                  <SelectItem value="proposed">Proposed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -159,7 +186,7 @@ export default function App() {
               <PipelineCard
                 key={item.id}
                 item={item}
-                currentUserLevel={userRole === 'admin' ? 'minister' : 'analyst'}
+                currentUserLevel={approvalLevelFor(user.role)}
                 onViewDetails={(company) => {
                   setSelectedCompany(company);
                   setIsModalOpen(true);
@@ -174,31 +201,48 @@ export default function App() {
           )}
         </div>
       )}
-      {currentView === 'activities' && (
-        <ActivityList
-          activities={activities}
-          onToggleComplete={handleToggleComplete}
-          onViewActivity={(activity) => toast.info(`Viewing: ${activity.title}`)}
-        />
+      {currentView === 'consolidated' && canViewLeadershipDashboards(user.role) && (
+        <Dashboard summary={summary} user={user} />
       )}
-      {currentView === 'documents' && (
-        <DocumentTracker
-          documents={documents}
-          onViewDocument={(doc) => toast.info(`Opening: ${doc.name}`)}
-          onUploadVersion={(doc) => toast.info(`Upload new version: ${doc.name}`)}
-        />
+      {currentView === 'operations' && canViewLeadershipDashboards(user.role) && (
+        <div className="rounded-xl border border-slate-200 bg-white p-10">
+          <PageHeader
+            badge="Operations"
+            title="Operational Performance"
+            description="Operational KPIs from approved quarterly reports will consolidate here by sector."
+          />
+        </div>
       )}
-      {currentView === 'consolidated' && userRole === 'admin' && <ConsolidatedView />}
-      {currentView === 'operations' && userRole === 'admin' && <OperationalDashboard />}
-      {currentView === 'executive' && userRole === 'admin' && <ExecutiveDashboard />}
-      {currentView === 'inter-ministerial' && userRole === 'admin' && <InterMinisterialPanel />}
+      {currentView === 'executive' && canViewLeadershipDashboards(user.role) && (
+        <Dashboard summary={summary} user={user} />
+      )}
+      {currentView === 'inter-ministerial' && canViewLeadershipDashboards(user.role) && (
+        <div className="rounded-xl border border-slate-200 bg-white p-10">
+          <PageHeader
+            badge="Cross-Government"
+            title="Inter-Ministerial Coordination"
+            description="Partner ministry workflows will be managed here as line ministries connect to portfolio collaboration."
+          />
+        </div>
+      )}
 
       <CompanyDetailsModal
         company={selectedCompany}
-        documents={selectedCompany ? getCompanyDocuments(selectedCompany.companyName) : []}
+        documents={[]}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
+      {(user.mustChangePassword || showChangePassword) && (
+        <ChangePasswordModal
+          user={user}
+          forced={Boolean(user.mustChangePassword)}
+          onUpdated={(updated) => {
+            setUser(updated);
+            setShowChangePassword(false);
+          }}
+          onClose={user.mustChangePassword ? undefined : () => setShowChangePassword(false)}
+        />
+      )}
       <Toaster position="top-right" richColors />
     </AppShell>
   );

@@ -85,3 +85,12 @@ temp/
 .netlify/
 .firebase/
 .firebaserc
+
+# Database
+server/data/
+*.db
+*.db-shm
+*.db-wal
+
+# Uploaded files
+server/uploads/
