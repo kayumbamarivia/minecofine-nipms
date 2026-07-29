@@ -1,25 +1,40 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   CheckCircle2,
   Clock,
   CornerUpLeft,
+  Download,
+  Eye,
+  FileText,
+  MessageSquarePlus,
+  Pencil,
   Plus,
   Send,
   AlertCircle,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { DocumentPreviewDialog } from './DocumentPreviewDialog';
 import { PageHeader, Panel, PanelBody } from './layout/PageHeader';
-import { submissionsApi } from '../../utils/services';
+import { documentsApi, submissionsApi } from '../../utils/services';
+import { getToken } from '../../utils/api';
 import {
   canApproveSubmission,
   canCreateSubmission,
+  canEditSubmissionFeedback,
   canReturnSubmission,
   canSubmitSubmission,
   STATUS_COLORS,
   STATUS_LABELS,
 } from '../../utils/roles';
-import type { AuthUser, Submission, SubmissionStatus, SubmissionType } from '../../types';
+import type {
+  AuthUser,
+  StoredDocument,
+  Submission,
+  SubmissionStatus,
+  SubmissionType,
+  WorkflowEvent,
+} from '../../types';
 import { toast } from 'sonner';
 
 interface SubmissionsPanelProps {
@@ -36,18 +51,108 @@ const TYPE_LABELS: Record<SubmissionType, string> = {
   annual_report: 'Annual Report',
 };
 
+const ACTION_LABELS: Record<string, string> = {
+  created: 'Created',
+  updated: 'Updated',
+  submitted: 'Submitted',
+  approved: 'Approved',
+  returned: 'Returned for revision',
+  feedback: 'Feedback note',
+  feedback_updated: 'Feedback clarified',
+};
+
 export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(submissions[0]?.id ?? null);
   const [returnComment, setReturnComment] = useState('');
+  const [feedbackDraft, setFeedbackDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  const [attachments, setAttachments] = useState<StoredDocument[]>([]);
+  const [attachmentsBusy, setAttachmentsBusy] = useState(false);
+  const [previewDocument, setPreviewDocument] = useState<StoredDocument | null>(null);
+  const [events, setEvents] = useState<WorkflowEvent[]>([]);
+  const [eventsBusy, setEventsBusy] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [editingComment, setEditingComment] = useState('');
+  const [editingActiveComment, setEditingActiveComment] = useState(false);
+  const [activeCommentDraft, setActiveCommentDraft] = useState('');
 
   const selected = submissions.find((s) => s.id === selectedId) ?? null;
+  const canEditFeedback = canEditSubmissionFeedback(user.role);
+
+  const loadEvents = async (submissionId: string) => {
+    setEventsBusy(true);
+    try {
+      const response = await submissionsApi.events(submissionId);
+      setEvents(response.data);
+    } catch {
+      setEvents([]);
+    } finally {
+      setEventsBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedId) {
+      setAttachments([]);
+      setEvents([]);
+      setEditingEventId(null);
+      setEditingActiveComment(false);
+      setFeedbackDraft('');
+      return;
+    }
+    setAttachmentsBusy(true);
+    void documentsApi
+      .listForSubmission(selectedId)
+      .then((response) => {
+        if (!cancelled) setAttachments(response.data);
+      })
+      .catch(() => {
+        if (!cancelled) setAttachments([]);
+      })
+      .finally(() => {
+        if (!cancelled) setAttachmentsBusy(false);
+      });
+    void loadEvents(selectedId);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (selected?.comments) {
+      setActiveCommentDraft(selected.comments);
+    } else {
+      setActiveCommentDraft('');
+      setEditingActiveComment(false);
+    }
+  }, [selected?.id, selected?.comments]);
+
+  const downloadAttachment = async (document: StoredDocument) => {
+    try {
+      const token = getToken();
+      const response = await fetch(documentsApi.downloadUrl(document.id), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error('Download failed');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = window.document.createElement('a');
+      anchor.href = url;
+      anchor.download = document.originalName;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to download document');
+    }
+  };
 
   const runAction = async (action: () => Promise<void>, success: string) => {
     setBusy(true);
     try {
       await action();
       await onRefresh();
+      if (selectedId) await loadEvents(selectedId);
       toast.success(success);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Action failed');
@@ -71,6 +176,28 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
       });
       setSelectedId(created.data.id);
     }, 'Draft quarterly report created');
+
+  const saveEventComment = (eventId: string) =>
+    runAction(async () => {
+      if (!selectedId) return;
+      await submissionsApi.updateEventComment(selectedId, eventId, editingComment.trim());
+      setEditingEventId(null);
+      setEditingComment('');
+    }, 'Feedback comment updated');
+
+  const saveActiveComment = () =>
+    runAction(async () => {
+      if (!selectedId) return;
+      await submissionsApi.updateActiveComment(selectedId, activeCommentDraft.trim());
+      setEditingActiveComment(false);
+    }, 'Active feedback updated');
+
+  const addFeedbackNote = () =>
+    runAction(async () => {
+      if (!selectedId) return;
+      await submissionsApi.addFeedback(selectedId, feedbackDraft.trim());
+      setFeedbackDraft('');
+    }, 'Feedback note added');
 
   const pending = submissions.filter((s) => s.status !== 'approved' && s.status !== 'draft').length;
 
@@ -150,10 +277,170 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                   <StatusBadge status={selected.status} />
                 </div>
 
-                {selected.comments && (
+                {(selected.comments || editingActiveComment) && (
                   <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-                    <p className="font-semibold">Reviewer comment</p>
-                    <p className="mt-1">{selected.comments}</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-semibold">Current reviewer feedback</p>
+                      {canEditFeedback && !editingActiveComment && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-1"
+                          onClick={() => {
+                            setActiveCommentDraft(selected.comments ?? '');
+                            setEditingActiveComment(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </Button>
+                      )}
+                    </div>
+                    {editingActiveComment ? (
+                      <div className="mt-3 space-y-2">
+                        <textarea
+                          value={activeCommentDraft}
+                          onChange={(e) => setActiveCommentDraft(e.target.value)}
+                          rows={4}
+                          className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            disabled={busy || !activeCommentDraft.trim()}
+                            onClick={() => void saveActiveComment()}
+                          >
+                            Save feedback
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => setEditingActiveComment(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-1 whitespace-pre-wrap">{selected.comments}</p>
+                    )}
+                  </div>
+                )}
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Review history & feedback
+                  </p>
+                  {eventsBusy && <p className="mt-3 text-sm text-slate-500">Loading history…</p>}
+                  {!eventsBusy && events.length === 0 && (
+                    <p className="mt-3 text-sm text-slate-500">No workflow history yet.</p>
+                  )}
+                  {!eventsBusy && events.length > 0 && (
+                    <div className="mt-3 space-y-3">
+                      {[...events].reverse().map((event) => {
+                        const isEditing = editingEventId === event.id;
+                        const canEditThis =
+                          canEditFeedback &&
+                          ['returned', 'feedback'].includes(event.action) &&
+                          Boolean(event.comment);
+                        return (
+                          <div
+                            key={event.id}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-3"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-2">
+                              <div>
+                                <p className="text-sm font-medium text-slate-900">
+                                  {ACTION_LABELS[event.action] ?? humanizeKey(event.action)}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {event.actorName} · {new Date(event.createdAt).toLocaleString()}
+                                  {event.fromStatus && event.toStatus
+                                    ? ` · ${STATUS_LABELS[event.fromStatus as SubmissionStatus] ?? event.fromStatus} → ${STATUS_LABELS[event.toStatus as SubmissionStatus] ?? event.toStatus}`
+                                    : ''}
+                                </p>
+                              </div>
+                              {canEditThis && !isEditing && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1"
+                                  onClick={() => {
+                                    setEditingEventId(event.id);
+                                    setEditingComment(event.comment ?? '');
+                                  }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" /> Edit
+                                </Button>
+                              )}
+                            </div>
+                            {isEditing ? (
+                              <div className="mt-3 space-y-2">
+                                <textarea
+                                  value={editingComment}
+                                  onChange={(e) => setEditingComment(e.target.value)}
+                                  rows={3}
+                                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20"
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    disabled={busy || !editingComment.trim()}
+                                    onClick={() => void saveEventComment(event.id)}
+                                  >
+                                    Save
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setEditingEventId(null);
+                                      setEditingComment('');
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              event.comment && (
+                                <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
+                                  {event.comment}
+                                </p>
+                              )
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {canEditFeedback && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                    <p className="text-sm font-semibold text-slate-900">Add or clarify feedback</p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      Company approvers, portfolio analysts and Heads of Department can leave notes or
+                      adjust existing return comments without waiting for a new return action.
+                    </p>
+                    <textarea
+                      value={feedbackDraft}
+                      onChange={(e) => setFeedbackDraft(e.target.value)}
+                      rows={3}
+                      placeholder="Clarify missing documents, incorrect figures, or required revisions…"
+                      className="mt-3 w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm outline-none focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20"
+                    />
+                    <Button
+                      className="mt-3 gap-2"
+                      size="sm"
+                      disabled={busy || !feedbackDraft.trim()}
+                      onClick={() => void addFeedbackNote()}
+                    >
+                      <MessageSquarePlus className="h-4 w-4" /> Add feedback note
+                    </Button>
                   </div>
                 )}
 
@@ -187,6 +474,56 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
 
                 <PayloadSummary payload={selected.payload ?? {}} />
 
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Linked supporting documents
+                  </p>
+                  {attachmentsBusy && (
+                    <p className="mt-3 text-sm text-slate-500">Loading documents…</p>
+                  )}
+                  {!attachmentsBusy && attachments.length === 0 && (
+                    <p className="mt-3 text-sm text-slate-500">
+                      No files are linked to this submission.
+                    </p>
+                  )}
+                  {!attachmentsBusy && attachments.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {attachments.map((document) => (
+                        <div
+                          key={document.id}
+                          className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2"
+                        >
+                          <FileText className="h-4 w-4 shrink-0 text-rw-blue" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-slate-900">
+                              {document.name}
+                            </p>
+                            <p className="truncate text-xs text-slate-500">
+                              {document.originalName} · {formatFileSize(document.sizeBytes)}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPreviewDocument(document)}
+                          >
+                            <Eye className="h-4 w-4" /> View
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void downloadAttachment(document)}
+                          >
+                            <Download className="h-4 w-4" /> Download
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex flex-wrap gap-2">
                   {canSubmitSubmission(user.role, selected.status, selected.type) && (
                     <Button
@@ -215,25 +552,26 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                     </Button>
                   )}
                   {canReturnSubmission(user.role, selected.status) && (
-                    <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
-                      <input
+                    <div className="flex w-full flex-col gap-2">
+                      <textarea
                         value={returnComment}
                         onChange={(e) => setReturnComment(e.target.value)}
-                        placeholder="Comment required to return for revision..."
-                        className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20"
+                        rows={3}
+                        placeholder="Explain what must be corrected before resubmission…"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20"
                       />
                       <Button
                         variant="outline"
                         disabled={busy || !returnComment.trim()}
-                        className="gap-2"
+                        className="w-fit gap-2"
                         onClick={() =>
                           runAction(async () => {
                             await submissionsApi.return(selected.id, returnComment.trim());
                             setReturnComment('');
-                          }, 'Returned to company for revision')
+                          }, 'Returned for revision')
                         }
                       >
-                        <CornerUpLeft className="h-4 w-4" /> Return
+                        <CornerUpLeft className="h-4 w-4" /> Return for revision
                       </Button>
                     </div>
                   )}
@@ -245,11 +583,18 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
           </PanelBody>
         </Panel>
       </div>
+      <DocumentPreviewDialog
+        document={previewDocument}
+        open={previewDocument !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewDocument(null);
+        }}
+      />
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: SubmissionStatus }) {
+function StatusBadge({ status }: Readonly<{ status: SubmissionStatus }>) {
   return (
     <Badge variant="outline" className={`shrink-0 text-[10px] ${STATUS_COLORS[status]}`}>
       {STATUS_LABELS[status]}
@@ -261,17 +606,14 @@ function Stat({
   label,
   value,
   accent,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   accent?: 'amber' | 'green';
-}) {
-  const colors =
-    accent === 'amber'
-      ? 'border-amber-200 bg-amber-50 text-amber-900'
-      : accent === 'green'
-        ? 'border-green-200 bg-green-50 text-green-900'
-        : 'border-slate-200 bg-white text-slate-900';
+}>) {
+  let colors = 'border-slate-200 bg-white text-slate-900';
+  if (accent === 'amber') colors = 'border-amber-200 bg-amber-50 text-amber-900';
+  if (accent === 'green') colors = 'border-green-200 bg-green-50 text-green-900';
 
   return (
     <div className={`rounded-xl border px-4 py-3 ${colors}`}>
@@ -285,11 +627,11 @@ function WorkflowHint({
   role,
   status,
   type,
-}: {
+}: Readonly<{
   role: AuthUser['role'];
   status: SubmissionStatus;
   type: SubmissionType;
-}) {
+}>) {
   const hints: Partial<Record<SubmissionStatus, string>> = {
     draft: 'Complete the package, then submit into the review chain.',
     pending_company_approval:
@@ -326,9 +668,9 @@ function WorkflowHint({
 
 function humanizeKey(key: string) {
   return key
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/_/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replaceAll(/([A-Z])/g, ' $1')
+    .replaceAll('_', ' ')
+    .replaceAll(/\s+/g, ' ')
     .trim()
     .replace(/^./, (c) => c.toUpperCase());
 }
@@ -346,7 +688,19 @@ function formatPayloadValue(key: string, value: unknown): string {
   return String(value);
 }
 
-function PayloadSummary({ payload }: { payload: Record<string, unknown> }) {
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const PACK_TEMPLATE_LABELS: Record<string, string> = {
+  quarterly_fs_v1: 'MINECOFIN quarterly financial statements v1',
+  quarterly_fs_v2: 'MINECOFIN quarterly financial statements v2',
+  annual_fs_v1: 'MINECOFIN annual financial statements v1',
+};
+
+function PayloadSummary({ payload }: Readonly<{ payload: Record<string, unknown> }>) {
   const sections: Array<{ title: string; entries: Array<[string, unknown]> }> = [];
 
   const pushObjectSection = (title: string, value: unknown) => {
@@ -360,6 +714,9 @@ function PayloadSummary({ payload }: { payload: Record<string, unknown> }) {
   if (payload.financialStatements) {
     pushObjectSection('Financial statements', payload.financialStatements);
   }
+  if (payload.cover) {
+    pushObjectSection('Cover sheet', payload.cover);
+  }
   if (payload.operationalMetrics) {
     pushObjectSection('Operational metrics', payload.operationalMetrics);
   }
@@ -370,32 +727,72 @@ function PayloadSummary({ payload }: { payload: Record<string, unknown> }) {
     pushObjectSection('Document checklist', payload.documentChecklist);
   }
 
-  // Flat / legacy payloads and other process types
+  const templateVersion =
+    typeof payload.templateVersion === 'string' ? payload.templateVersion : '';
+
+  if (PACK_TEMPLATE_LABELS[templateVersion]) {
+    const isAnnual = templateVersion === 'annual_fs_v1';
+    const countLines = (map: unknown) =>
+      map && typeof map === 'object' ? Object.keys(map as object).length : 0;
+    sections.push({
+      title: isAnnual ? 'Full annual statement pack' : 'Full quarterly statement pack',
+      entries: [
+        ['template', PACK_TEMPLATE_LABELS[templateVersion]],
+        [
+          'trialBalanceAccounts',
+          Array.isArray(payload.trialBalance) ? payload.trialBalance.length : 0,
+        ],
+        ['balanceSheetLines', countLines(payload.balanceSheet)],
+        ['incomeStatementLines', countLines(payload.incomeStatement)],
+        ['cashFlowLines', countLines(payload.cashFlow)],
+        ['equityLines', countLines(payload.changesInEquity)],
+        [
+          'balanceSheetNotes',
+          Array.isArray(payload.balanceSheetNotes) ? payload.balanceSheetNotes.length : 0,
+        ],
+        [
+          'incomeStatementNotes',
+          Array.isArray(payload.incomeStatementNotes) ? payload.incomeStatementNotes.length : 0,
+        ],
+        [
+          'operationalKpis',
+          Array.isArray(payload.operationalKpis) ? payload.operationalKpis.length : 0,
+        ],
+        [
+          'governanceKpis',
+          Array.isArray(payload.governanceKpis) ? payload.governanceKpis.length : 0,
+        ],
+      ],
+    });
+  }
+
   const nestedKeys = new Set([
     'financialStatements',
     'operationalMetrics',
     'governanceMetrics',
     'documentChecklist',
     'ratios',
+    'cover',
+    'trialBalance',
+    'balanceSheet',
+    'incomeStatement',
+    'cashFlow',
+    'changesInEquity',
+    'balanceSheetNotes',
+    'incomeStatementNotes',
+    'financialAnalysisComments',
+    'operationalKpis',
+    'governanceKpis',
+    'attachedDocuments',
+    'templateVersion',
   ]);
   const flat = Object.entries(payload).filter(
     ([key, value]) => !nestedKeys.has(key) && value !== null && typeof value !== 'object',
   );
   if (flat.length) sections.push({ title: 'Package details', entries: flat });
 
-  // Nested profile / SOE objects that aren't arrays
   for (const [key, value] of Object.entries(payload)) {
     if (nestedKeys.has(key) || value == null || typeof value !== 'object' || Array.isArray(value)) {
-      continue;
-    }
-    if (
-      [
-        'financialStatements',
-        'operationalMetrics',
-        'governanceMetrics',
-        'documentChecklist',
-      ].includes(key)
-    ) {
       continue;
     }
     pushObjectSection(humanizeKey(key), value);

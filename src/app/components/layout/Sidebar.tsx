@@ -4,9 +4,7 @@ import {
   CheckSquare,
   FileText,
   ClipboardEdit,
-  BarChart3,
   Activity,
-  Crown,
   Building2,
   ChevronRight,
   GitBranch,
@@ -63,21 +61,9 @@ const mainNav: NavItem[] = [
 
 const leadershipNav: NavItem[] = [
   {
-    key: 'consolidated',
-    label: 'Consolidated View',
-    icon: BarChart3,
-    show: (u) => canViewLeadershipDashboards(u.role),
-  },
-  {
     key: 'operations',
     label: 'Operations',
     icon: Activity,
-    show: (u) => canViewLeadershipDashboards(u.role),
-  },
-  {
-    key: 'executive',
-    label: 'Executive Briefing',
-    icon: Crown,
     show: (u) => canViewLeadershipDashboards(u.role),
   },
   {

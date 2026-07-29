@@ -1128,5 +1128,108 @@ export const openApiSpec = {
         },
       },
     },
+    '/api/imports/annual-template': {
+      get: {
+        tags: ['Imports'],
+        summary: 'Download the official annual financial statements workbook',
+        security: bearerAuth,
+        responses: {
+          200: {
+            description: 'Excel workbook (Cover, Trial Balance, statements, notes, KPIs)',
+            content: {
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+                schema: { type: 'string', format: 'binary' },
+              },
+            },
+          },
+          404: errorResponse('Template file not available on the server'),
+        },
+      },
+    },
+    '/api/imports/quarterly-template': {
+      get: {
+        tags: ['Imports'],
+        summary: 'Download the official quarterly financial statements workbook',
+        security: bearerAuth,
+        responses: {
+          200: {
+            description: 'Excel workbook',
+            content: {
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+                schema: { type: 'string', format: 'binary' },
+              },
+            },
+          },
+          404: errorResponse('Template file not available on the server'),
+        },
+      },
+    },
+    '/api/imports/financial-pack': {
+      post: {
+        tags: ['Imports'],
+        summary: 'Parse a filled statements workbook into the full reporting pack',
+        description:
+          'Accepts the MINECOFIN annual or quarterly workbook (.xlsx, max 10 MB) and returns cover details, ' +
+          'trial balance accounts, balance sheet / income / cash flow / equity line amounts and KPI rows for ' +
+          'auto-filling the reporting form. Mode is auto-detected from the amount column headings when omitted.',
+        security: bearerAuth,
+        parameters: [
+          {
+            name: 'mode',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', enum: ['annual', 'quarterly'] },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                required: ['file'],
+                properties: {
+                  file: { type: 'string', format: 'binary' },
+                  mode: { type: 'string', enum: ['annual', 'quarterly'] },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Parsed statement pack',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: {
+                      type: 'object',
+                      properties: {
+                        packType: { type: 'string', enum: ['annual', 'quarterly'] },
+                        amountKeys: { type: 'array', items: { type: 'string' } },
+                        cover: { type: 'object' },
+                        trialBalance: { type: 'array', items: { type: 'object' } },
+                        balanceSheet: { type: 'object' },
+                        incomeStatement: { type: 'object' },
+                        cashFlow: { type: 'object' },
+                        changesInEquity: { type: 'object' },
+                        operationalKpis: { type: 'array', items: { type: 'object' } },
+                        governanceKpis: { type: 'array', items: { type: 'object' } },
+                        mappedLines: { type: 'integer' },
+                        sheetsFound: { type: 'array', items: { type: 'string' } },
+                        warnings: { type: 'array', items: { type: 'string' } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: errorResponse('No file / unreadable workbook / no lines matched'),
+        },
+      },
+    },
   },
 } as const;

@@ -71,6 +71,11 @@ export function canReturnSubmission(role: UserRole, status: SubmissionStatus) {
   return canApproveSubmission(role, status);
 }
 
+/** Reviewers who may clarify or adjust feedback comments on a package. */
+export function canEditSubmissionFeedback(role: UserRole) {
+  return ['company_approver', 'portfolio_analyst', 'department_head'].includes(role);
+}
+
 export function canViewLeadershipDashboards(role: UserRole) {
   return ['department_head', 'leadership', 'portfolio_analyst'].includes(role);
 }

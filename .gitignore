@@ -80,6 +80,7 @@ temp/
 *.temp
 *.bak
 *.orig
+~$*
 .turbo/
 .vercel/
 .netlify/

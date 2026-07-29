@@ -106,6 +106,21 @@ function enrichPayload(type: SubmissionType, payload: Record<string, unknown>) {
       boardMinutes: false,
       otherReports: false,
     },
+    // Preserve the full IFRS pack when present (quarterly_fs_v1/v2, annual_fs_v1).
+    ...(payload.templateVersion ? { templateVersion: payload.templateVersion } : {}),
+    ...(payload.cover ? { cover: payload.cover } : {}),
+    ...(payload.trialBalance ? { trialBalance: payload.trialBalance } : {}),
+    ...(payload.balanceSheet ? { balanceSheet: payload.balanceSheet } : {}),
+    ...(payload.incomeStatement ? { incomeStatement: payload.incomeStatement } : {}),
+    ...(payload.cashFlow ? { cashFlow: payload.cashFlow } : {}),
+    ...(payload.changesInEquity ? { changesInEquity: payload.changesInEquity } : {}),
+    ...(payload.balanceSheetNotes ? { balanceSheetNotes: payload.balanceSheetNotes } : {}),
+    ...(payload.incomeStatementNotes ? { incomeStatementNotes: payload.incomeStatementNotes } : {}),
+    ...(payload.financialAnalysisComments
+      ? { financialAnalysisComments: payload.financialAnalysisComments }
+      : {}),
+    ...(payload.operationalKpis ? { operationalKpis: payload.operationalKpis } : {}),
+    ...(payload.governanceKpis ? { governanceKpis: payload.governanceKpis } : {}),
   };
 }
 
@@ -185,13 +200,18 @@ async function applyApprovedEffects(submission: InstanceType<typeof Submission>)
 
   if (submission.type === 'profile_update') {
     const fields = [
+      'name',
+      'sector',
+      'establishedDate',
       'location',
       'province',
+      'ministry',
       'description',
+      'investmentAmount',
+      'ownershipPct',
       'ceoName',
       'cfoName',
       'boardChair',
-      'ministry',
     ] as const;
     for (const field of fields) {
       if (payload[field] !== undefined) {
@@ -207,6 +227,25 @@ router.get('/', async (req: AuthRequest, res) => {
   const data = await listSubmissions(req.user!.companyId);
   return res.json({ data });
 });
+
+function canEditFeedback(role: UserRole) {
+  return ['company_approver', 'portfolio_analyst', 'department_head'].includes(role);
+}
+
+async function toEventDto(event: InstanceType<typeof WorkflowEvent>) {
+  const actor = await User.findById(event.actorId).select('fullName');
+  return {
+    id: event._id.toString(),
+    submissionId: event.submissionId.toString(),
+    actorId: event.actorId.toString(),
+    actorName: actor?.fullName ?? 'Unknown',
+    action: event.action,
+    comment: event.comment || null,
+    fromStatus: event.fromStatus || null,
+    toStatus: event.toStatus || null,
+    createdAt: event.createdAt.toISOString(),
+  };
+}
 
 router.get('/:id/events', async (req: AuthRequest, res) => {
   const submission = await Submission.findById(req.params.id);
@@ -228,6 +267,7 @@ router.get('/:id/events', async (req: AuthRequest, res) => {
     data: events.map((e) => ({
       id: e._id.toString(),
       submissionId: e.submissionId.toString(),
+      actorId: e.actorId.toString(),
       actorName: actorMap.get(e.actorId.toString()) ?? 'Unknown',
       action: e.action,
       comment: e.comment || null,
@@ -236,6 +276,151 @@ router.get('/:id/events', async (req: AuthRequest, res) => {
       createdAt: e.createdAt.toISOString(),
     })),
   });
+});
+
+router.patch('/:id/events/:eventId', async (req: AuthRequest, res) => {
+  const user = req.user!;
+  const { comment } = req.body as { comment?: string };
+  if (!comment?.trim()) {
+    return res.status(400).json({ error: 'Comment text is required' });
+  }
+  if (!canEditFeedback(user.role)) {
+    return res.status(403).json({ error: 'Your role cannot edit review feedback' });
+  }
+
+  const submission = await Submission.findById(req.params.id);
+  if (!submission) {
+    return res.status(404).json({ error: 'Submission not found' });
+  }
+  if (user.companyId && submission.companyId.toString() !== user.companyId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const event = await WorkflowEvent.findOne({
+    _id: req.params.eventId,
+    submissionId: submission._id,
+  });
+  if (!event) {
+    return res.status(404).json({ error: 'Feedback event not found' });
+  }
+
+  const nextComment = comment.trim();
+  event.comment = nextComment;
+  await event.save();
+
+  // Keep the active return banner in sync when clarifying the latest return reason.
+  if (event.action === 'returned' || event.action === 'feedback') {
+    const latestFeedback = await WorkflowEvent.findOne({
+      submissionId: submission._id,
+      action: { $in: ['returned', 'feedback'] },
+      comment: { $ne: '' },
+    }).sort({ createdAt: -1 });
+    if (latestFeedback && latestFeedback._id.toString() === event._id.toString()) {
+      submission.comments = nextComment;
+      await submission.save();
+    }
+  }
+
+  await logEvent(
+    submission._id.toString(),
+    user.id,
+    'feedback_updated',
+    submission.status,
+    submission.status,
+    `Updated feedback by ${user.fullName}`,
+  );
+
+  return res.json({ data: await toEventDto(event) });
+});
+
+router.post('/:id/feedback', async (req: AuthRequest, res) => {
+  const user = req.user!;
+  const { comment } = req.body as { comment?: string };
+  if (!comment?.trim()) {
+    return res.status(400).json({ error: 'Feedback text is required' });
+  }
+  if (!canEditFeedback(user.role)) {
+    return res.status(403).json({ error: 'Your role cannot add review feedback' });
+  }
+
+  const submission = await Submission.findById(req.params.id);
+  if (!submission) {
+    return res.status(404).json({ error: 'Submission not found' });
+  }
+  if (user.companyId && submission.companyId.toString() !== user.companyId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const nextComment = comment.trim();
+  submission.comments = nextComment;
+  submission.reviewedBy = new Types.ObjectId(user.id);
+  await submission.save();
+
+  const event = await WorkflowEvent.create({
+    submissionId: submission._id,
+    actorId: user.id,
+    action: 'feedback',
+    fromStatus: submission.status,
+    toStatus: submission.status,
+    comment: nextComment,
+  });
+
+  return res.json({ data: await toEventDto(event) });
+});
+
+router.patch('/:id/comments', async (req: AuthRequest, res) => {
+  const user = req.user!;
+  const { comment } = req.body as { comment?: string };
+  if (!comment?.trim()) {
+    return res.status(400).json({ error: 'Comment text is required' });
+  }
+  if (!canEditFeedback(user.role)) {
+    return res.status(403).json({ error: 'Your role cannot edit review feedback' });
+  }
+
+  const submission = await Submission.findById(req.params.id);
+  if (!submission) {
+    return res.status(404).json({ error: 'Submission not found' });
+  }
+  if (user.companyId && submission.companyId.toString() !== user.companyId) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const nextComment = comment.trim();
+  submission.comments = nextComment;
+  submission.reviewedBy = new Types.ObjectId(user.id);
+  await submission.save();
+
+  // Prefer updating the latest return/feedback event so the timeline stays accurate.
+  const latestFeedback = await WorkflowEvent.findOne({
+    submissionId: submission._id,
+    action: { $in: ['returned', 'feedback'] },
+  }).sort({ createdAt: -1 });
+
+  if (latestFeedback) {
+    latestFeedback.comment = nextComment;
+    await latestFeedback.save();
+  } else {
+    await WorkflowEvent.create({
+      submissionId: submission._id,
+      actorId: user.id,
+      action: 'feedback',
+      fromStatus: submission.status,
+      toStatus: submission.status,
+      comment: nextComment,
+    });
+  }
+
+  await logEvent(
+    submission._id.toString(),
+    user.id,
+    'feedback_updated',
+    submission.status,
+    submission.status,
+    `Clarified active feedback by ${user.fullName}`,
+  );
+
+  return res.json({ data: await hydrateSubmission(submission._id.toString()) });
 });
 
 router.post('/', async (req: AuthRequest, res) => {

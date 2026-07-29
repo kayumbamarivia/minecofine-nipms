@@ -33,20 +33,3 @@ export type SubmissionStatus =
   | 'returned';
 
 export type WorkflowStage = 'company' | 'ministry' | 'department' | 'final';
-
-export const ROLE_LABELS: Record<UserRole, string> = {
-  company_submitter: 'Company Data Submitter',
-  company_approver: 'Company Approver',
-  portfolio_analyst: 'Portfolio Analyst',
-  department_head: 'Head of Department',
-  leadership: 'Leadership',
-};
-
-export const STATUS_LABELS: Record<SubmissionStatus, string> = {
-  draft: 'Draft',
-  pending_company_approval: 'Pending Company Approval',
-  pending_ministry_review: 'Pending Ministry Review',
-  pending_department_approval: 'Pending Department Approval',
-  approved: 'Approved',
-  returned: 'Returned for Revision',
-};

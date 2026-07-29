@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Download, Trash2, Upload } from 'lucide-react';
+import { Download, Eye, Trash2, Upload } from 'lucide-react';
 import { Button } from './ui/button';
 import { PageHeader, Panel, PanelBody } from './layout/PageHeader';
+import { DocumentPreviewDialog } from './DocumentPreviewDialog';
 import { documentsApi } from '../../utils/services';
 import { getToken } from '../../utils/api';
 import type { AuthUser, StoredDocument, StoredDocumentCategory } from '../../types';
@@ -42,6 +43,7 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
   const [category, setCategory] = useState<StoredDocumentCategory>('other');
   const [notes, setNotes] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<StoredDocument | null>(null);
 
   const load = async () => {
     const res = await documentsApi.list(user.companyId ? undefined : companyId || undefined);
@@ -238,6 +240,14 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
                       size="sm"
                       variant="outline"
                       className="gap-1"
+                      onClick={() => setPreviewDocument(doc)}
+                    >
+                      <Eye className="h-3.5 w-3.5" /> View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
                       onClick={() => void download(doc.id, doc.originalName)}
                     >
                       <Download className="h-3.5 w-3.5" /> Download
@@ -257,6 +267,13 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
           </tbody>
         </table>
       </div>
+      <DocumentPreviewDialog
+        document={previewDocument}
+        open={previewDocument !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreviewDocument(null);
+        }}
+      />
     </div>
   );
 }

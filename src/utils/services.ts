@@ -1,7 +1,7 @@
-import { api } from './api';
-import { getToken } from './api';
+import { api, getToken } from './api';
 import type {
   ActionPoint,
+  ActionPointAssignee,
   AuthUser,
   Company,
   DashboardSummary,
@@ -66,6 +66,18 @@ export const submissionsApi = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  update: (
+    id: string,
+    body: {
+      title?: string;
+      period?: string;
+      payload?: Record<string, unknown>;
+    },
+  ) =>
+    api<{ data: Submission }>(`/submissions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   submit: (id: string) =>
     api<{ data: Submission }>(`/submissions/${id}/submit`, { method: 'POST' }),
   approve: (id: string) =>
@@ -76,6 +88,21 @@ export const submissionsApi = {
       body: JSON.stringify({ comment }),
     }),
   events: (id: string) => api<{ data: WorkflowEvent[] }>(`/submissions/${id}/events`),
+  updateEventComment: (submissionId: string, eventId: string, comment: string) =>
+    api<{ data: WorkflowEvent }>(`/submissions/${submissionId}/events/${eventId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ comment }),
+    }),
+  addFeedback: (id: string, comment: string) =>
+    api<{ data: WorkflowEvent }>(`/submissions/${id}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify({ comment }),
+    }),
+  updateActiveComment: (id: string, comment: string) =>
+    api<{ data: Submission }>(`/submissions/${id}/comments`, {
+      method: 'PATCH',
+      body: JSON.stringify({ comment }),
+    }),
 };
 
 export const dashboardApi = {
@@ -84,6 +111,7 @@ export const dashboardApi = {
 
 export const actionPointsApi = {
   list: () => api<{ data: ActionPoint[] }>('/action-points'),
+  assignees: () => api<{ data: ActionPointAssignee[] }>('/action-points/assignees'),
   create: (body: {
     companyId: string;
     submissionId?: string;
@@ -92,7 +120,8 @@ export const actionPointsApi = {
     category?: ActionPoint['category'];
     priority?: ActionPoint['priority'];
     dueDate?: string;
-    assignedTo?: string;
+    assignmentType: ActionPoint['assignmentType'];
+    assignedAnalystId?: string;
   }) =>
     api<{ data: ActionPoint }>('/action-points', {
       method: 'POST',
@@ -110,6 +139,10 @@ export const documentsApi = {
     api<{ data: StoredDocument[]; storage?: { driver: string } }>(
       `/documents${companyId ? `?companyId=${encodeURIComponent(companyId)}` : ''}`,
     ),
+  listForSubmission: (submissionId: string) =>
+    api<{ data: StoredDocument[]; storage?: { driver: string } }>(
+      `/documents?submissionId=${encodeURIComponent(submissionId)}`,
+    ),
   upload: async (form: FormData) => {
     const token = getToken();
     const response = await fetch('/api/documents', {
@@ -124,6 +157,7 @@ export const documentsApi = {
     return response.json() as Promise<{ data: StoredDocument }>;
   },
   downloadUrl: (id: string) => `/api/documents/${id}/download`,
+  previewUrl: (id: string) => `/api/documents/${id}/preview`,
   remove: (id: string) => api<{ success: boolean }>(`/documents/${id}`, { method: 'DELETE' }),
 };
 
@@ -135,8 +169,107 @@ export const reportsApi = {
   portfolioCsvUrl: () => '/api/reports/portfolio-summary?format=csv',
 };
 
+export interface ImportedContractObjective {
+  id: string;
+  objective: string;
+  description: string;
+}
+
+export interface ImportedContractKpi {
+  kpi: string;
+  baseline: string;
+  target: string;
+  actual: string;
+  score: string;
+  narrative: string;
+}
+
+export interface ImportedPerformanceContract {
+  companyName: string;
+  financialYear: string;
+  contractDate: string;
+  mandateStatement: string;
+  strategicObjectives: ImportedContractObjective[];
+  financialKpis: ImportedContractKpi[];
+  operationalKpis: ImportedContractKpi[];
+  governanceKpis: ImportedContractKpi[];
+  overallPerformanceRating:
+    | ''
+    | 'below_expectations'
+    | 'meets_expectations'
+    | 'exceeds_expectations';
+  chairmanNarrative: {
+    keyAchievements: string;
+    keyChallengesRisks: string;
+    forwardLookingPriorities: string;
+  };
+}
+
+export type FinancialPackMode = 'annual' | 'quarterly';
+
+export interface ParsedPackTrialBalanceRow {
+  glCode: string;
+  accountDescription: string;
+  noteRef: string;
+  mapsTo: string;
+  statementRow: string;
+  source: string;
+  amounts: Record<string, number>;
+}
+
+export interface ParsedPackKpiRow {
+  key: string;
+  label: string;
+  priorYear: string;
+  current: string;
+  ytd: string;
+  target: string;
+  notes: string;
+}
+
+export interface ParsedFinancialPack {
+  packType: FinancialPackMode;
+  amountKeys: string[];
+  cover: {
+    companyName: string;
+    sector: string;
+    financialYear: string;
+    reportingPeriod: string;
+    preparedByName: string;
+    authorizedByName: string;
+  };
+  trialBalance: ParsedPackTrialBalanceRow[];
+  balanceSheet: Record<string, Record<string, number>>;
+  incomeStatement: Record<string, Record<string, number>>;
+  cashFlow: Record<string, Record<string, number>>;
+  changesInEquity: Record<string, Record<string, number>>;
+  operationalKpis: ParsedPackKpiRow[];
+  governanceKpis: ParsedPackKpiRow[];
+  mappedLines: number;
+  sheetsFound: string[];
+  warnings: string[];
+}
+
 export const importsApi = {
   financialTemplateUrl: () => '/api/imports/financial-template',
+  annualTemplateUrl: () => '/api/imports/annual-template',
+  quarterlyTemplateUrl: () => '/api/imports/quarterly-template',
+  parseFinancialPack: async (file: File, mode: FinancialPackMode) => {
+    const token = getToken();
+    const form = new FormData();
+    form.append('file', file);
+    form.append('mode', mode);
+    const response = await fetch(`/api/imports/financial-pack?mode=${mode}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      throw new Error(body.error ?? 'Workbook import failed');
+    }
+    return response.json() as Promise<{ data: ParsedFinancialPack }>;
+  },
   parseFinancialStatements: async (file: File) => {
     const token = getToken();
     const form = new FormData();
@@ -157,6 +290,21 @@ export const importsApi = {
         unmappedHeaders: string[];
       };
     }>;
+  },
+  parsePerformanceContract: async (file: File) => {
+    const token = getToken();
+    const form = new FormData();
+    form.append('file', file);
+    const response = await fetch('/api/imports/performance-contract', {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      throw new Error(body.error ?? 'Performance contract import failed');
+    }
+    return response.json() as Promise<{ data: ImportedPerformanceContract }>;
   },
 };
 

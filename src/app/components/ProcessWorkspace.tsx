@@ -1,17 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { PageHeader, Panel, PanelBody, PanelHeader } from './layout/PageHeader';
-import { importsApi, submissionsApi } from '../../utils/services';
-import { getToken } from '../../utils/api';
+import { PerformanceContractForm } from './PerformanceContractForm';
+import { QuarterlyReportForm } from './QuarterlyReportForm';
+import { AnnualReportForm } from './AnnualReportForm';
+import { SupportingFileField } from './SupportingFileField';
+import { companiesApi, documentsApi, submissionsApi } from '../../utils/services';
 import { canCreateSubmission, isCompanyRole } from '../../utils/roles';
-import { computeFinancialRatios, EMPTY_STATEMENTS, type FinancialStatements } from '../../utils/ratios';
-import { formatRwf } from '../../utils/format';
-import type { AuthUser, SubmissionType } from '../../types';
+import type { AuthUser, StoredDocumentCategory, SubmissionType } from '../../types';
 import { toast } from 'sonner';
 
 interface ProcessWorkspaceProps {
   user: AuthUser;
-  companies: Array<{ id: string; name: string; code: string }>;
+  companies: Array<{ id: string; name: string; code: string; sector?: string }>;
   onCreated: () => Promise<void>;
 }
 
@@ -96,7 +97,7 @@ export function ProcessWorkspace({ user, companies, onCreated }: ProcessWorkspac
         />
       )}
       {active === 'planning_budgeting' && (
-        <PlanningForm
+        <PerformanceContractForm
           user={user}
           companies={companies}
           defaultCompanyId={defaultCompanyId}
@@ -105,7 +106,7 @@ export function ProcessWorkspace({ user, companies, onCreated }: ProcessWorkspac
           onCreated={onCreated}
         />
       )}
-      {(active === 'quarterly_report' || active === 'annual_report') && (
+      {active === 'quarterly_report' && (
         <QuarterlyReportForm
           user={user}
           companies={companies}
@@ -113,7 +114,16 @@ export function ProcessWorkspace({ user, companies, onCreated }: ProcessWorkspac
           busy={busy}
           setBusy={setBusy}
           onCreated={onCreated}
-          reportType={active}
+        />
+      )}
+      {active === 'annual_report' && (
+        <AnnualReportForm
+          user={user}
+          companies={companies}
+          defaultCompanyId={defaultCompanyId}
+          busy={busy}
+          setBusy={setBusy}
+          onCreated={onCreated}
         />
       )}
     </div>
@@ -193,9 +203,98 @@ function SoeCreationForm({
     investmentAmount: '0',
     ownershipPct: '100',
   });
+  const [supportingFiles, setSupportingFiles] = useState({
+    businessCase: null as File | null,
+    businessPlan: null as File | null,
+    registrationCertificate: null as File | null,
+    shareholderAgreement: null as File | null,
+    articlesOfAssociation: null as File | null,
+  });
 
   const set = (key: keyof typeof form, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  const allDocumentsSelected = Object.values(supportingFiles).every(Boolean);
+
+  const save = async () => {
+    if (!allDocumentsSelected) {
+      toast.error('Select all required registration documents before saving');
+      return;
+    }
+    setBusy(true);
+    try {
+      const payload: Record<string, unknown> = {
+        ...form,
+        investmentAmount: Number(form.investmentAmount),
+        ownershipPct: Number(form.ownershipPct),
+      };
+      const created = await submissionsApi.create({
+        type: 'soe_creation',
+        title: `SOE Registration — ${form.name || form.code}`,
+        payload,
+      });
+      const files: Array<{
+        file: File;
+        name: string;
+        category: StoredDocumentCategory;
+      }> = [
+        {
+          file: supportingFiles.businessCase!,
+          name: 'Business case',
+          category: 'business_case',
+        },
+        {
+          file: supportingFiles.businessPlan!,
+          name: 'Business plan / strategy',
+          category: 'business_plan',
+        },
+        {
+          file: supportingFiles.registrationCertificate!,
+          name: 'Registration certificate',
+          category: 'registration_certificate',
+        },
+        {
+          file: supportingFiles.shareholderAgreement!,
+          name: 'Shareholder agreement',
+          category: 'shareholder_agreement',
+        },
+        {
+          file: supportingFiles.articlesOfAssociation!,
+          name: 'Articles of association',
+          category: 'articles_of_association',
+        },
+      ];
+      const uploadedDocuments = await Promise.all(
+        files.map(async (item) => {
+          const uploadForm = new FormData();
+          uploadForm.append('file', item.file);
+          uploadForm.append('companyId', created.data.companyId);
+          uploadForm.append('submissionId', created.data.id);
+          uploadForm.append('name', item.name);
+          uploadForm.append('category', item.category);
+          return (await documentsApi.upload(uploadForm)).data;
+        }),
+      );
+      await submissionsApi.update(created.data.id, {
+        payload: {
+          ...payload,
+          attachments: uploadedDocuments.map((document) => ({
+            id: document.id,
+            name: document.name,
+            originalName: document.originalName,
+            category: document.category,
+            sizeBytes: document.sizeBytes,
+          })),
+        },
+      });
+      await onCreated();
+      toast.success('SOE creation draft saved with all registration documents');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save SOE creation draft');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Panel>
@@ -229,27 +328,58 @@ function SoeCreationForm({
             className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-rw-blue focus:bg-white focus:ring-2 focus:ring-rw-blue/20"
           />
         </label>
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Required attachment checklist (upload module next): business case, business plan/strategy,
-          registration certificate, shareholder agreements, articles of association.
-        </p>
+        <section className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">
+              Required registration documents
+            </h3>
+            <p className="mt-0.5 text-xs text-slate-500">
+              These files will be linked to the SOE registration submission and stored in its company
+              folder.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <SupportingFileField
+              label="Business case"
+              description="Approved justification for establishing the SOE."
+              file={supportingFiles.businessCase}
+              onChange={(file) => setSupportingFiles((current) => ({ ...current, businessCase: file }))}
+            />
+            <SupportingFileField
+              label="Business plan / strategy"
+              description="Business model, strategy and implementation plan."
+              file={supportingFiles.businessPlan}
+              onChange={(file) => setSupportingFiles((current) => ({ ...current, businessPlan: file }))}
+            />
+            <SupportingFileField
+              label="Registration certificate"
+              description="Official company registration certificate."
+              file={supportingFiles.registrationCertificate}
+              onChange={(file) =>
+                setSupportingFiles((current) => ({ ...current, registrationCertificate: file }))
+              }
+            />
+            <SupportingFileField
+              label="Shareholder agreement"
+              description="Executed shareholder agreement."
+              file={supportingFiles.shareholderAgreement}
+              onChange={(file) =>
+                setSupportingFiles((current) => ({ ...current, shareholderAgreement: file }))
+              }
+            />
+            <SupportingFileField
+              label="Articles of association"
+              description="Approved articles governing the company."
+              file={supportingFiles.articlesOfAssociation}
+              onChange={(file) =>
+                setSupportingFiles((current) => ({ ...current, articlesOfAssociation: file }))
+              }
+            />
+          </div>
+        </section>
         <Button
-          disabled={busy || !form.code || !form.name || !form.sector}
-          onClick={() =>
-            void createAndToast(
-              {
-                type: 'soe_creation',
-                title: `SOE Registration — ${form.name || form.code}`,
-                payload: {
-                  ...form,
-                  investmentAmount: Number(form.investmentAmount),
-                  ownershipPct: Number(form.ownershipPct),
-                },
-              },
-              onCreated,
-              setBusy,
-            )
-          }
+          disabled={busy || !form.code || !form.name || !form.sector || !allDocumentsSelected}
+          onClick={() => void save()}
         >
           Save SOE creation draft
         </Button>
@@ -275,20 +405,66 @@ function ProfileUpdateForm({
 }) {
   const [companyId, setCompanyId] = useState(defaultCompanyId);
   const [form, setForm] = useState({
+    name: '',
+    sector: '',
+    establishedDate: '',
     location: '',
     province: '',
+    ministry: '',
     description: '',
+    investmentAmount: '',
+    ownershipPct: '',
     ceoName: '',
     cfoName: '',
     boardChair: '',
     changeSummary: '',
   });
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!companyId) return;
+
+    setLoadingProfile(true);
+    void companiesApi
+      .get(companyId)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setForm({
+          name: data.name,
+          sector: data.sector,
+          establishedDate: data.createdDate ?? '',
+          location: data.location ?? '',
+          province: data.province ?? '',
+          ministry: data.ministry ?? '',
+          description: data.description ?? '',
+          investmentAmount: String(data.investmentAmount ?? 0),
+          ownershipPct: String(data.ownershipPct ?? 0),
+          ceoName: data.ceoName ?? '',
+          cfoName: data.cfoName ?? '',
+          boardChair: data.boardChair ?? '',
+          changeSummary: '',
+        });
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(error instanceof Error ? error.message : 'Unable to load current profile');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProfile(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId]);
 
   return (
     <Panel>
       <PanelHeader
         title="Business Process 2 — Update SOE profile"
-        description="Record changes to location, management or board composition, then send for approval."
+        description="Current company values are loaded below. Edit only what needs to change, describe the update, then send it for approval."
       />
       <PanelBody className="space-y-4">
         {!user.companyId && (
@@ -309,9 +485,35 @@ function ProfileUpdateForm({
             </select>
           </label>
         )}
+        {loadingProfile && (
+          <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+            Loading current company profile…
+          </p>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Company name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+          <Field label="Sector" value={form.sector} onChange={(v) => setForm({ ...form, sector: v })} />
+          <Field
+            label="Date of establishment"
+            value={form.establishedDate}
+            onChange={(v) => setForm({ ...form, establishedDate: v })}
+            type="date"
+          />
           <Field label="Location" value={form.location} onChange={(v) => setForm({ ...form, location: v })} />
           <Field label="Province" value={form.province} onChange={(v) => setForm({ ...form, province: v })} />
+          <Field label="Line ministry" value={form.ministry} onChange={(v) => setForm({ ...form, ministry: v })} />
+          <Field
+            label="Investment amount (RWF)"
+            value={form.investmentAmount}
+            onChange={(v) => setForm({ ...form, investmentAmount: v })}
+            type="number"
+          />
+          <Field
+            label="Government ownership %"
+            value={form.ownershipPct}
+            onChange={(v) => setForm({ ...form, ownershipPct: v })}
+            type="number"
+          />
           <Field label="CEO" value={form.ceoName} onChange={(v) => setForm({ ...form, ceoName: v })} />
           <Field label="CFO" value={form.cfoName} onChange={(v) => setForm({ ...form, cfoName: v })} />
           <Field label="Board chairperson" value={form.boardChair} onChange={(v) => setForm({ ...form, boardChair: v })} />
@@ -333,14 +535,18 @@ function ProfileUpdateForm({
           />
         </label>
         <Button
-          disabled={busy || !companyId}
+          disabled={busy || loadingProfile || !companyId}
           onClick={() =>
             void createAndToast(
               {
                 companyId,
                 type: 'profile_update',
                 title: `Profile update — ${companies.find((c) => c.id === companyId)?.code ?? 'SOE'}`,
-                payload: form,
+                payload: {
+                  ...form,
+                  investmentAmount: Number(form.investmentAmount || 0),
+                  ownershipPct: Number(form.ownershipPct || 0),
+                },
               },
               onCreated,
               setBusy,
@@ -351,393 +557,5 @@ function ProfileUpdateForm({
         </Button>
       </PanelBody>
     </Panel>
-  );
-}
-
-function PlanningForm({
-  user,
-  companies,
-  defaultCompanyId,
-  busy,
-  setBusy,
-  onCreated,
-}: {
-  user: AuthUser;
-  companies: Array<{ id: string; name: string; code: string }>;
-  defaultCompanyId: string;
-  busy: boolean;
-  setBusy: (v: boolean) => void;
-  onCreated: () => Promise<void>;
-}) {
-  const [companyId, setCompanyId] = useState(defaultCompanyId);
-  const [fiscalYear, setFiscalYear] = useState('FY 2026/27');
-  const [form, setForm] = useState({
-    budgetTotal: '',
-    financialTarget: '',
-    operationalTarget: '',
-    governanceTarget: '',
-    performanceContractAttached: false,
-    budgetAttached: false,
-    strategicPlanAttached: false,
-  });
-
-  return (
-    <Panel>
-      <PanelHeader
-        title="Business Process 3 — Planning and budgeting"
-        description="Capture annual KPI targets and performance contract package for ministry review."
-      />
-      <PanelBody className="space-y-4">
-        {!user.companyId && (
-          <select
-            value={companyId}
-            onChange={(e) => setCompanyId(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
-          >
-            {companies.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.code} — {c.name}
-              </option>
-            ))}
-          </select>
-        )}
-        <Field label="Fiscal year" value={fiscalYear} onChange={setFiscalYear} />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field
-            label="Budget total (RWF)"
-            value={form.budgetTotal}
-            onChange={(v) => setForm({ ...form, budgetTotal: v })}
-            type="number"
-          />
-          <Field
-            label="Financial KPI target"
-            value={form.financialTarget}
-            onChange={(v) => setForm({ ...form, financialTarget: v })}
-          />
-          <Field
-            label="Operational KPI target"
-            value={form.operationalTarget}
-            onChange={(v) => setForm({ ...form, operationalTarget: v })}
-          />
-          <Field
-            label="Governance KPI target"
-            value={form.governanceTarget}
-            onChange={(v) => setForm({ ...form, governanceTarget: v })}
-          />
-        </div>
-        <div className="space-y-2 text-sm text-slate-700">
-          {[
-            ['performanceContractAttached', 'Signed performance contract attached'],
-            ['budgetAttached', 'Budget and action plan attached'],
-            ['strategicPlanAttached', 'Strategic / business plan attached (if revised)'],
-          ].map(([key, label]) => (
-            <label key={key} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={form[key as keyof typeof form] as boolean}
-                onChange={(e) => setForm({ ...form, [key]: e.target.checked })}
-              />
-              {label}
-            </label>
-          ))}
-        </div>
-        <Button
-          disabled={busy || !companyId}
-          onClick={() =>
-            void createAndToast(
-              {
-                companyId,
-                type: 'planning_budgeting',
-                title: `Planning & Budgeting — ${fiscalYear}`,
-                period: fiscalYear,
-                payload: {
-                  ...form,
-                  budgetTotal: Number(form.budgetTotal || 0),
-                },
-              },
-              onCreated,
-              setBusy,
-            )
-          }
-        >
-          Save planning draft
-        </Button>
-      </PanelBody>
-    </Panel>
-  );
-}
-
-function QuarterlyReportForm({
-  user,
-  companies,
-  defaultCompanyId,
-  busy,
-  setBusy,
-  onCreated,
-  reportType = 'quarterly_report',
-}: {
-  user: AuthUser;
-  companies: Array<{ id: string; name: string; code: string }>;
-  defaultCompanyId: string;
-  busy: boolean;
-  setBusy: (v: boolean) => void;
-  onCreated: () => Promise<void>;
-  reportType?: 'quarterly_report' | 'annual_report';
-}) {
-  const isAnnual = reportType === 'annual_report';
-  const [companyId, setCompanyId] = useState(defaultCompanyId);
-  const [period, setPeriod] = useState(isAnnual ? 'FY 2025/26' : 'Q2 2026');
-  const [fs, setFs] = useState<FinancialStatements>({ ...EMPTY_STATEMENTS });
-  const [ops, setOps] = useState({ metric1: '', metric2: '', notes: '' });
-  const [gov, setGov] = useState({ boardMeetingsHeld: '', governanceScore: '', notes: '' });
-  const [docs, setDocs] = useState({
-    signedFinancialStatements: false,
-    boardMinutes: false,
-    otherReports: false,
-  });
-
-  const ratios = useMemo(() => computeFinancialRatios(fs), [fs]);
-  const [importBusy, setImportBusy] = useState(false);
-
-  const setMoney = (key: keyof FinancialStatements, value: string) => {
-    setFs((prev) => ({ ...prev, [key]: Number(value || 0) }));
-  };
-
-  const onImportSpreadsheet = async (file: File | undefined) => {
-    if (!file) return;
-    setImportBusy(true);
-    try {
-      const res = await importsApi.parseFinancialStatements(file);
-      setFs({ ...EMPTY_STATEMENTS, ...(res.data.financialStatements as FinancialStatements) });
-      toast.success(
-        `Imported ${res.data.mappedFields.length} fields from spreadsheet` +
-          (res.data.unmappedHeaders.length
-            ? ` (${res.data.unmappedHeaders.length} columns skipped)`
-            : ''),
-      );
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Import failed');
-    } finally {
-      setImportBusy(false);
-    }
-  };
-
-  const downloadTemplate = async () => {
-    try {
-      const token = getToken();
-      const response = await fetch(importsApi.financialTemplateUrl(), {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!response.ok) throw new Error('Could not download template');
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'nipms-financial-statement-template.csv';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Template download failed');
-    }
-  };
-
-  return (
-    <Panel>
-      <PanelHeader
-        title={
-          isAnnual
-            ? 'Business Process 6 — Annual report'
-            : 'Business Process 4 — Quarterly report'
-        }
-        description={
-          isAnnual
-            ? 'Submit full-year financial statements, operational and governance metrics for ministry review (Process 7).'
-            : 'Enter financial statements, operational and governance metrics. Ratios and red flags are calculated automatically.'
-        }
-      />
-      <PanelBody className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {!user.companyId && (
-            <label className="block text-sm sm:col-span-1">
-              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                Company
-              </span>
-              <select
-                value={companyId}
-                onChange={(e) => setCompanyId(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
-              >
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.code} — {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <Field
-            label={isAnnual ? 'Fiscal year' : 'Reporting period'}
-            value={period}
-            onChange={setPeriod}
-          />
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-sm font-semibold text-slate-900">Import from Excel / CSV</p>
-          <p className="mt-1 text-xs text-slate-600">
-            Download the template, fill values, then upload to populate the statement tables. You can still edit fields afterwards.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <Button type="button" variant="outline" size="sm" onClick={() => void downloadTemplate()}>
-              Download CSV template
-            </Button>
-            <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-              <span className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium hover:bg-slate-50">
-                {importBusy ? 'Importing…' : 'Upload spreadsheet'}
-              </span>
-              <input
-                type="file"
-                accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                className="sr-only"
-                disabled={importBusy}
-                onChange={(e) => {
-                  void onImportSpreadsheet(e.target.files?.[0]);
-                  e.target.value = '';
-                }}
-              />
-            </label>
-          </div>
-        </div>
-
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-slate-900">Income statement</h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Field label="Revenue" value={fs.revenue || ''} onChange={(v) => setMoney('revenue', v)} type="number" />
-            <Field label="Cost of sales" value={fs.costOfSales || ''} onChange={(v) => setMoney('costOfSales', v)} type="number" />
-            <Field label="Operating expenses" value={fs.operatingExpenses || ''} onChange={(v) => setMoney('operatingExpenses', v)} type="number" />
-            <Field label="Interest expense" value={fs.interestExpense || ''} onChange={(v) => setMoney('interestExpense', v)} type="number" />
-            <Field label="Tax expense" value={fs.taxExpense || ''} onChange={(v) => setMoney('taxExpense', v)} type="number" />
-          </div>
-        </div>
-
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-slate-900">Balance sheet</h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Field label="Current assets" value={fs.currentAssets || ''} onChange={(v) => setMoney('currentAssets', v)} type="number" />
-            <Field label="Non-current assets" value={fs.nonCurrentAssets || ''} onChange={(v) => setMoney('nonCurrentAssets', v)} type="number" />
-            <Field label="Current liabilities" value={fs.currentLiabilities || ''} onChange={(v) => setMoney('currentLiabilities', v)} type="number" />
-            <Field label="Non-current liabilities" value={fs.nonCurrentLiabilities || ''} onChange={(v) => setMoney('nonCurrentLiabilities', v)} type="number" />
-            <Field label="Equity" value={fs.equity || ''} onChange={(v) => setMoney('equity', v)} type="number" />
-          </div>
-        </div>
-
-        <div>
-          <h3 className="mb-3 text-sm font-semibold text-slate-900">Cash flow (summary)</h3>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Field label="Operating cash flow" value={fs.operatingCashFlow || ''} onChange={(v) => setMoney('operatingCashFlow', v)} type="number" />
-            <Field label="Investing cash flow" value={fs.investingCashFlow || ''} onChange={(v) => setMoney('investingCashFlow', v)} type="number" />
-            <Field label="Financing cash flow" value={fs.financingCashFlow || ''} onChange={(v) => setMoney('financingCashFlow', v)} type="number" />
-          </div>
-        </div>
-
-        <div className="grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
-          <RatioTile label="Gross profit" value={formatRwf(ratios.grossProfit, true)} />
-          <RatioTile label="EBITDA" value={formatRwf(ratios.ebitda, true)} />
-          <RatioTile label="Net income" value={formatRwf(ratios.netIncome, true)} />
-          <RatioTile label="Current ratio" value={ratios.currentRatio?.toFixed(2) ?? '—'} />
-          <RatioTile label="Gross margin" value={ratios.grossMarginPct != null ? `${ratios.grossMarginPct}%` : '—'} />
-          <RatioTile label="EBITDA margin" value={ratios.ebitdaMarginPct != null ? `${ratios.ebitdaMarginPct}%` : '—'} />
-          <RatioTile label="ROE" value={ratios.returnOnEquityPct != null ? `${ratios.returnOnEquityPct}%` : '—'} />
-          <RatioTile label="Debt / Equity" value={ratios.debtToEquity?.toFixed(2) ?? '—'} />
-        </div>
-
-        {ratios.redFlags.length > 0 && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-            <p className="font-semibold">Red flags</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5">
-              {ratios.redFlags.map((flag) => (
-                <li key={flag}>{flag}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-slate-900">Operational metrics</h3>
-            <Field label="Primary operational KPI" value={ops.metric1} onChange={(v) => setOps({ ...ops, metric1: v })} />
-            <Field label="Secondary operational KPI" value={ops.metric2} onChange={(v) => setOps({ ...ops, metric2: v })} />
-            <Field label="Notes" value={ops.notes} onChange={(v) => setOps({ ...ops, notes: v })} />
-          </div>
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-slate-900">Governance metrics</h3>
-            <Field
-              label="Board meetings held"
-              value={gov.boardMeetingsHeld}
-              onChange={(v) => setGov({ ...gov, boardMeetingsHeld: v })}
-              type="number"
-            />
-            <Field
-              label="Governance score"
-              value={gov.governanceScore}
-              onChange={(v) => setGov({ ...gov, governanceScore: v })}
-              type="number"
-            />
-            <Field label="Notes" value={gov.notes} onChange={(v) => setGov({ ...gov, notes: v })} />
-          </div>
-        </div>
-
-        <div className="space-y-2 text-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Document checklist</p>
-          {[
-            ['signedFinancialStatements', 'Signed financial statements'],
-            ['boardMinutes', 'Board minutes (previous quarter)'],
-            ['otherReports', 'Other shareholder reports'],
-          ].map(([key, label]) => (
-            <label key={key} className="flex items-center gap-2 text-slate-700">
-              <input
-                type="checkbox"
-                checked={docs[key as keyof typeof docs]}
-                onChange={(e) => setDocs({ ...docs, [key]: e.target.checked })}
-              />
-              {label}
-            </label>
-          ))}
-        </div>
-
-        <Button
-          disabled={busy || !companyId}
-          onClick={() =>
-            void createAndToast(
-              {
-                companyId,
-                type: reportType,
-                title: `${isAnnual ? 'Annual' : 'Quarterly'} Report — ${period}`,
-                period,
-                payload: {
-                  financialStatements: fs,
-                  operationalMetrics: ops,
-                  governanceMetrics: gov,
-                  documentChecklist: docs,
-                },
-              },
-              onCreated,
-              setBusy,
-            )
-          }
-        >
-          Save {isAnnual ? 'annual' : 'quarterly'} draft
-        </Button>
-      </PanelBody>
-    </Panel>
-  );
-}
-
-function RatioTile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-bold text-slate-900">{value}</p>
-    </div>
   );
 }

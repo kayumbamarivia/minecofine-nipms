@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { PageHeader, Panel, PanelBody } from './layout/PageHeader';
 import { actionPointsApi } from '../../utils/services';
-import type { ActionPoint, AuthUser } from '../../types';
+import type { ActionPoint, ActionPointAssignee, AuthUser } from '../../types';
 import { toast } from 'sonner';
 
 interface ActionPointsPanelProps {
@@ -10,8 +10,9 @@ interface ActionPointsPanelProps {
   companies: Array<{ id: string; name: string; code: string }>;
 }
 
-export function ActionPointsPanel({ user, companies }: ActionPointsPanelProps) {
+export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPanelProps>) {
   const [items, setItems] = useState<ActionPoint[]>([]);
+  const [assignees, setAssignees] = useState<ActionPointAssignee[]>([]);
   const [busy, setBusy] = useState(false);
   const canRaise = ['portfolio_analyst', 'department_head', 'leadership'].includes(user.role);
 
@@ -22,7 +23,8 @@ export function ActionPointsPanel({ user, companies }: ActionPointsPanelProps) {
     category: 'financial' as ActionPoint['category'],
     priority: 'medium' as ActionPoint['priority'],
     dueDate: '',
-    assignedTo: '',
+    assignmentType: 'company' as ActionPoint['assignmentType'],
+    assignedAnalystId: '',
   });
 
   const load = async () => {
@@ -31,9 +33,10 @@ export function ActionPointsPanel({ user, companies }: ActionPointsPanelProps) {
   };
 
   useEffect(() => {
-    void load().catch((error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to load action points');
-    });
+    void Promise.all([load(), actionPointsApi.assignees().then((res) => setAssignees(res.data))])
+      .catch((error) => {
+        toast.error(error instanceof Error ? error.message : 'Failed to load action points');
+      });
   }, []);
 
   useEffect(() => {
@@ -47,16 +50,30 @@ export function ActionPointsPanel({ user, companies }: ActionPointsPanelProps) {
       toast.error('Company and title are required');
       return;
     }
+    if (form.assignmentType === 'analyst' && !form.assignedAnalystId) {
+      toast.error('Select the portfolio analyst who will handle this action');
+      return;
+    }
     setBusy(true);
     try {
       await actionPointsApi.create(form);
-      setForm((prev) => ({ ...prev, title: '', description: '', assignedTo: '' }));
+      setForm((prev) => ({ ...prev, title: '', description: '' }));
       await load();
       toast.success('Action point raised');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to create action point');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const assignCompanyPerson = async (id: string, companyAssigneeId: string) => {
+    try {
+      await actionPointsApi.update(id, { companyAssigneeId });
+      await load();
+      toast.success('Responsible person assigned');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Assignment failed');
     }
   };
 
@@ -69,6 +86,16 @@ export function ActionPointsPanel({ user, companies }: ActionPointsPanelProps) {
       toast.error(error instanceof Error ? error.message : 'Update failed');
     }
   };
+
+  const canHandle = (item: ActionPoint) =>
+    user.role === 'department_head' ||
+    user.role === 'leadership' ||
+    (user.role === 'portfolio_analyst' &&
+      item.assignmentType === 'analyst' &&
+      item.assignedAnalystId === user.id) ||
+    (Boolean(user.companyId) &&
+      item.assignmentType === 'company' &&
+      item.companyAssigneeId === user.id);
 
   return (
     <div className="space-y-6">
@@ -165,17 +192,49 @@ export function ActionPointsPanel({ user, companies }: ActionPointsPanelProps) {
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
                 />
               </label>
-              <label className="block text-sm sm:col-span-2">
+              <label className="block text-sm">
                 <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  Assigned to
+                  Assign action to
                 </span>
-                <input
-                  value={form.assignedTo}
-                  onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
+                <select
+                  value={form.assignmentType}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      assignmentType: e.target.value as ActionPoint['assignmentType'],
+                      assignedAnalystId: '',
+                    })
+                  }
                   className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                  placeholder="Name or office responsible"
-                />
+                >
+                  <option value="company">Company</option>
+                  <option value="analyst">Portfolio analyst</option>
+                </select>
               </label>
+              {form.assignmentType === 'analyst' ? (
+                <label className="block text-sm">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    Responsible analyst
+                  </span>
+                  <select
+                    value={form.assignedAnalystId}
+                    onChange={(e) => setForm({ ...form, assignedAnalystId: e.target.value })}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                  >
+                    <option value="">Select analyst</option>
+                    {assignees.map((assignee) => (
+                      <option key={assignee.id} value={assignee.id}>
+                        {assignee.fullName}
+                        {assignee.title ? ` — ${assignee.title}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                  The company will select a registered staff member to take responsibility.
+                </div>
+              )}
             </div>
             <Button disabled={busy} onClick={() => void create()}>
               Raise action point
@@ -198,27 +257,66 @@ export function ActionPointsPanel({ user, companies }: ActionPointsPanelProps) {
                 <p className="mt-1 text-xs text-slate-500">
                   {item.companyName} · {item.category} · {item.priority} · raised by {item.raisedByName}
                 </p>
+                <p className="mt-1 text-xs font-medium text-rw-blue">
+                  {getAssignmentLabel(item)}
+                </p>
               </div>
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                {item.status.replaceAll('_', ' ')}
+                {item.status.replace(/_/g, ' ')}
               </span>
             </div>
             {item.description && <p className="mt-3 text-sm text-slate-700">{item.description}</p>}
-            <div className="mt-3 flex flex-wrap gap-2">
-              {item.status !== 'in_progress' && (
-                <Button size="sm" variant="outline" onClick={() => void setStatus(item.id, 'in_progress')}>
-                  Mark in progress
-                </Button>
-              )}
-              {item.status !== 'resolved' && (
-                <Button size="sm" onClick={() => void setStatus(item.id, 'resolved')}>
-                  Resolve
-                </Button>
-              )}
-            </div>
+            {Boolean(user.companyId) && item.assignmentType === 'company' && (
+              <label className="mt-3 block max-w-sm text-sm">
+                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  Company person responsible
+                </span>
+                <select
+                  value={item.companyAssigneeId ?? ''}
+                  onChange={(e) => void assignCompanyPerson(item.id, e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                >
+                  <option value="">Select person</option>
+                  {assignees.map((assignee) => (
+                    <option key={assignee.id} value={assignee.id}>
+                      {assignee.fullName}
+                      {assignee.title ? ` — ${assignee.title}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {canHandle(item) && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {item.status !== 'in_progress' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void setStatus(item.id, 'in_progress')}
+                  >
+                    Mark in progress
+                  </Button>
+                )}
+                {item.status !== 'resolved' && (
+                  <Button size="sm" onClick={() => void setStatus(item.id, 'resolved')}>
+                    Resolve
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
     </div>
   );
+}
+
+function getAssignmentLabel(item: ActionPoint) {
+  if (item.assignmentType === 'analyst') {
+    return `Assigned to analyst: ${item.assignedAnalystName ?? 'Not selected'}`;
+  }
+  if (item.companyAssigneeName) {
+    return `Assigned to company · Handler: ${item.companyAssigneeName}`;
+  }
+  return 'Assigned to company · Handler not yet selected';
 }

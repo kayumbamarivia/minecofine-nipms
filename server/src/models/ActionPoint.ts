@@ -3,6 +3,7 @@ import mongoose, { Schema, Types } from 'mongoose';
 export type ActionPointStatus = 'open' | 'in_progress' | 'resolved' | 'overdue';
 export type ActionPointCategory = 'financial' | 'operational' | 'governance' | 'other';
 export type ActionPointPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type ActionPointAssignmentType = 'analyst' | 'company';
 
 export interface IActionPoint {
   _id: Types.ObjectId;
@@ -15,6 +16,9 @@ export interface IActionPoint {
   status: ActionPointStatus;
   dueDate: string;
   raisedBy: Types.ObjectId;
+  assignmentType: ActionPointAssignmentType;
+  assignedAnalystId: Types.ObjectId | null;
+  companyAssigneeId: Types.ObjectId | null;
   assignedTo: string;
   resolutionNote: string;
   createdAt: Date;
@@ -45,6 +49,15 @@ const actionPointSchema = new Schema<IActionPoint>(
     },
     dueDate: { type: String, default: '' },
     raisedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    assignmentType: {
+      type: String,
+      enum: ['analyst', 'company'],
+      default: 'company',
+      index: true,
+    },
+    assignedAnalystId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    companyAssigneeId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    // Retained for action points created before registered-user assignment was introduced.
     assignedTo: { type: String, default: '' },
     resolutionNote: { type: String, default: '' },
   },

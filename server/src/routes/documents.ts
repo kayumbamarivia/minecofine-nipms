@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { Types } from 'mongoose';
+import mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
 import { DocumentFile } from '../models/DocumentFile.js';
 import { Company } from '../models/Company.js';
 import { User } from '../models/User.js';
@@ -63,14 +65,58 @@ function toDto(
   };
 }
 
+async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  return new Promise((resolve, reject) => {
+    stream.on('data', (chunk: Buffer | string) => {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', reject);
+  });
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function previewPage(title: string, content: string): string {
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body { margin: 0; padding: 32px; color: #172033; background: white; font: 14px/1.55 Arial, sans-serif; }
+    h1, h2, h3 { color: #101828; } table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    td, th { border: 1px solid #d0d5dd; padding: 8px; text-align: left; vertical-align: top; }
+    img { max-width: 100%; height: auto; } pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>${content}</body>
+</html>`;
+}
+
 router.get('/', async (req: AuthRequest, res) => {
-  const { companyId } = req.query as { companyId?: string };
+  const { companyId, submissionId } = req.query as {
+    companyId?: string;
+    submissionId?: string;
+  };
   const filter: Record<string, unknown> = {};
 
   if (req.user!.companyId) {
     filter.companyId = req.user!.companyId;
   } else if (companyId && Types.ObjectId.isValid(companyId)) {
     filter.companyId = companyId;
+  }
+  if (submissionId && Types.ObjectId.isValid(submissionId)) {
+    filter.submissionId = submissionId;
   }
 
   const rows = await DocumentFile.find(filter).sort({ createdAt: -1 });
@@ -173,6 +219,67 @@ router.get('/:id/download', async (req: AuthRequest, res) => {
   } catch (error) {
     return res.status(404).json({
       error: error instanceof Error ? error.message : 'File missing from storage',
+    });
+  }
+});
+
+router.get('/:id/preview', async (req: AuthRequest, res) => {
+  try {
+    const doc = await DocumentFile.findById(req.params.id);
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+    if (req.user!.companyId && doc.companyId.toString() !== req.user!.companyId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const driver = resolveLegacyDriver(doc.storagePath, doc.storageDriver);
+    const { stream, contentType } = await getObjectStream(doc.storagePath, driver);
+    const buffer = await streamToBuffer(stream);
+    const mimeType = contentType || doc.mimeType || 'application/octet-stream';
+    const filename = doc.originalName.toLowerCase();
+
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${doc.originalName.replaceAll('"', '')}"`,
+    );
+
+    if (mimeType === 'application/pdf' || mimeType.startsWith('image/')) {
+      res.setHeader('Content-Type', mimeType);
+      return res.send(buffer);
+    }
+
+    let convertedHtml = '';
+    if (
+      mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      filename.endsWith('.docx')
+    ) {
+      const converted = await mammoth.convertToHtml({ buffer });
+      convertedHtml = converted.value;
+    } else if (
+      mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+      mimeType === 'application/vnd.ms-excel' ||
+      mimeType === 'text/csv' ||
+      /\.(xlsx|xls|csv)$/.test(filename)
+    ) {
+      const workbook = XLSX.read(buffer, { type: 'buffer' });
+      convertedHtml = workbook.SheetNames.map((sheetName) => {
+        const sheet = workbook.Sheets[sheetName];
+        return `<h2>${escapeHtml(sheetName)}</h2>${XLSX.utils.sheet_to_html(sheet)}`;
+      }).join('');
+    } else if (mimeType.startsWith('text/') || filename.endsWith('.txt')) {
+      convertedHtml = `<pre>${escapeHtml(buffer.toString('utf8'))}</pre>`;
+    } else {
+      return res.status(415).json({
+        error: 'Preview is unavailable for this file type. Download the original file instead.',
+      });
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.send(previewPage(doc.originalName, convertedHtml));
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : 'Unable to generate preview',
     });
   }
 });

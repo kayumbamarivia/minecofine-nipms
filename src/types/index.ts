@@ -79,6 +79,7 @@ export interface Submission {
 export interface WorkflowEvent {
   id: string;
   submissionId: string;
+  actorId: string;
   actorName: string;
   action: string;
   comment: string | null;
@@ -141,55 +142,6 @@ export interface PipelineItem {
   province?: string;
 }
 
-export type ActivityPriority = 'low' | 'medium' | 'high' | 'urgent';
-export type ActivityStatus = 'pending' | 'in_progress' | 'completed' | 'overdue';
-
-export interface Activity {
-  id: string;
-  title: string;
-  description: string;
-  dueDate: string;
-  assignedTo: string;
-  relatedCompany: string;
-  priority: ActivityPriority;
-  status: ActivityStatus;
-  category:
-    | 'meeting'
-    | 'board_appointment'
-    | 'strategy_development'
-    | 'board_charter'
-    | 'funding_decision'
-    | 'approval_process'
-    | 'review'
-    | 'follow_up';
-  completedDate?: string;
-}
-
-export type DocumentStatus = 'not_started' | 'in_progress' | 'review' | 'completed';
-export type DocumentType =
-  | 'strategic_plan'
-  | 'board_charter'
-  | 'investment_memo'
-  | 'valuation'
-  | 'due_diligence'
-  | 'term_sheet';
-
-export interface Document {
-  id: string;
-  name: string;
-  type: DocumentType;
-  status: DocumentStatus;
-  progress: number;
-  relatedDeal: string;
-  assignedTo: string;
-  dueDate: string;
-  lastUpdated: string;
-  version: string;
-  approvalRequired: boolean;
-  approvedBy?: string;
-  fileSize?: string;
-}
-
 export type AppView =
   | 'dashboard'
   | 'portfolio'
@@ -199,20 +151,8 @@ export type AppView =
   | 'documents'
   | 'reports'
   | 'users'
-  | 'consolidated'
   | 'operations'
-  | 'executive'
   | 'inter-ministerial';
-
-export interface MinistryPartner {
-  id: string;
-  name: string;
-  acronym: string;
-  activeCollaborations: number;
-  pendingApprovals: number;
-  lastSync: string;
-  status: 'connected' | 'pending' | 'offline';
-}
 
 export interface ActionPoint {
   id: string;
@@ -227,10 +167,23 @@ export interface ActionPoint {
   dueDate: string | null;
   raisedBy: string;
   raisedByName: string;
+  assignmentType: 'analyst' | 'company';
+  assignedAnalystId: string | null;
+  assignedAnalystName: string | null;
+  companyAssigneeId: string | null;
+  companyAssigneeName: string | null;
   assignedTo: string;
   resolutionNote: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ActionPointAssignee {
+  id: string;
+  fullName: string;
+  role: UserRole;
+  companyId: string | null;
+  title: string;
 }
 
 export type StoredDocumentCategory =

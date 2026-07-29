@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import type { AppView, AuthUser } from '../../types';
+import type { AppView, AuthUser } from '../../../types';
 
 interface AppShellProps {
   currentView: AppView;

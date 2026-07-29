@@ -119,7 +119,12 @@ export default function App() {
     );
   }
 
-  const companyOptions = companies.map((c) => ({ id: c.id, name: c.name, code: c.code }));
+  const companyOptions = companies.map((c) => ({
+    id: c.id,
+    name: c.name,
+    code: c.code,
+    sector: c.sector,
+  }));
 
   return (
     <AppShell
@@ -201,9 +206,6 @@ export default function App() {
           )}
         </div>
       )}
-      {currentView === 'consolidated' && canViewLeadershipDashboards(user.role) && (
-        <Dashboard summary={summary} user={user} />
-      )}
       {currentView === 'operations' && canViewLeadershipDashboards(user.role) && (
         <div className="rounded-xl border border-slate-200 bg-white p-10">
           <PageHeader
@@ -212,9 +214,6 @@ export default function App() {
             description="Operational KPIs from approved quarterly reports will consolidate here by sector."
           />
         </div>
-      )}
-      {currentView === 'executive' && canViewLeadershipDashboards(user.role) && (
-        <Dashboard summary={summary} user={user} />
       )}
       {currentView === 'inter-ministerial' && canViewLeadershipDashboards(user.role) && (
         <div className="rounded-xl border border-slate-200 bg-white p-10">
@@ -228,7 +227,6 @@ export default function App() {
 
       <CompanyDetailsModal
         company={selectedCompany}
-        documents={[]}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
       />
