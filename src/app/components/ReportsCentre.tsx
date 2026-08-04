@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download } from 'lucide-react';
 import { Button } from './ui/button';
+import { EmptyState } from './ui/empty-state';
 import { PageHeader, Panel, PanelBody, PanelHeader } from './layout/PageHeader';
 import { reportsApi } from '../../utils/services';
 import { getToken } from '../../utils/api';
@@ -12,6 +13,9 @@ interface ReportsCentreProps {
   user: AuthUser;
   companies: Array<{ id: string; name: string; code: string }>;
 }
+
+const selectClass =
+  'w-full max-w-md rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20';
 
 export function ReportsCentre({ user, companies }: ReportsCentreProps) {
   const [companyId, setCompanyId] = useState(user.companyId ?? companies[0]?.id ?? '');
@@ -104,7 +108,7 @@ export function ReportsCentre({ user, companies }: ReportsCentreProps) {
             <select
               value={companyId}
               onChange={(e) => setCompanyId(e.target.value)}
-              className="w-full max-w-md rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+              className={selectClass}
             >
               {companies.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -122,34 +126,36 @@ export function ReportsCentre({ user, companies }: ReportsCentreProps) {
           )}
 
           {periods.length === 0 ? (
-            <p className="text-sm text-slate-500">
-              No approved quarterly or annual reports available for this entity yet.
-            </p>
+            <EmptyState
+              compact
+              title="No approved reports yet"
+              description="Approved quarterly or annual reports for this entity will appear in this summary."
+            />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="nipms-table">
                 <thead>
-                  <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wider text-slate-500">
-                    <th className="py-2 pr-3">Period</th>
-                    <th className="py-2 pr-3">Type</th>
-                    <th className="py-2 pr-3 text-right">Revenue</th>
-                    <th className="py-2 pr-3 text-right">EBITDA</th>
-                    <th className="py-2 pr-3 text-right">Net income</th>
-                    <th className="py-2 text-right">Current ratio</th>
+                  <tr>
+                    <th>Period</th>
+                    <th>Type</th>
+                    <th className="text-right">Revenue</th>
+                    <th className="text-right">EBITDA</th>
+                    <th className="text-right">Net income</th>
+                    <th className="text-right">Current ratio</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody>
                   {periods.map((p) => {
                     const fs = p.financialSummary as Record<string, number>;
                     const ratios = p.ratios as Record<string, number>;
                     return (
                       <tr key={String(p.submissionId)}>
-                        <td className="py-2 pr-3 font-medium">{String(p.period)}</td>
-                        <td className="py-2 pr-3 capitalize">{String(p.type).replaceAll('_', ' ')}</td>
-                        <td className="py-2 pr-3 text-right">{formatRwf(fs.revenue ?? 0, true)}</td>
-                        <td className="py-2 pr-3 text-right">{formatRwf(fs.ebitda ?? 0, true)}</td>
-                        <td className="py-2 pr-3 text-right">{formatRwf(fs.netIncome ?? 0, true)}</td>
-                        <td className="py-2 text-right">{ratios.currentRatio ?? '—'}</td>
+                        <td className="font-medium text-slate-900">{String(p.period)}</td>
+                        <td className="capitalize">{String(p.type).replaceAll('_', ' ')}</td>
+                        <td className="text-right">{formatRwf(fs.revenue ?? 0, true)}</td>
+                        <td className="text-right">{formatRwf(fs.ebitda ?? 0, true)}</td>
+                        <td className="text-right">{formatRwf(fs.netIncome ?? 0, true)}</td>
+                        <td className="text-right">{ratios.currentRatio ?? '—'}</td>
                       </tr>
                     );
                   })}
@@ -167,30 +173,30 @@ export function ReportsCentre({ user, companies }: ReportsCentreProps) {
             description="Latest approved figures across active SOEs"
           />
           <PanelBody className="overflow-x-auto p-0">
-            <table className="w-full text-sm">
+            <table className="nipms-table">
               <thead>
-                <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wider text-slate-500">
-                  <th className="px-5 py-3">Code</th>
-                  <th className="px-5 py-3">Entity</th>
-                  <th className="px-5 py-3">Latest period</th>
-                  <th className="px-5 py-3 text-right">Revenue</th>
-                  <th className="px-5 py-3 text-right">Net income</th>
-                  <th className="px-5 py-3">Flags</th>
+                <tr>
+                  <th>Code</th>
+                  <th>Entity</th>
+                  <th>Latest period</th>
+                  <th className="text-right">Revenue</th>
+                  <th className="text-right">Net income</th>
+                  <th>Flags</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody>
                 {portfolioRows.map((row) => (
-                  <tr key={String(row.companyId)} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 font-medium text-rw-blue">{String(row.code)}</td>
-                    <td className="px-5 py-3">{String(row.name)}</td>
-                    <td className="px-5 py-3">{String(row.latestPeriod ?? '—')}</td>
-                    <td className="px-5 py-3 text-right">
+                  <tr key={String(row.companyId)}>
+                    <td className="font-medium text-rw-blue">{String(row.code)}</td>
+                    <td>{String(row.name)}</td>
+                    <td>{String(row.latestPeriod ?? '—')}</td>
+                    <td className="text-right">
                       {formatRwf(Number(row.latestRevenue ?? 0), true)}
                     </td>
-                    <td className="px-5 py-3 text-right">
+                    <td className="text-right">
                       {formatRwf(Number(row.latestNetIncome ?? 0), true)}
                     </td>
-                    <td className="px-5 py-3 text-xs text-red-700">
+                    <td className="text-xs text-red-700">
                       {Array.isArray(row.redFlags) && row.redFlags.length > 0
                         ? `${row.redFlags.length} flag(s)`
                         : '—'}

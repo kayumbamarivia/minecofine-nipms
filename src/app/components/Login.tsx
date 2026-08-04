@@ -4,6 +4,8 @@ import type { AuthUser } from '../../types';
 import { RwandaFlag } from './brand/RwandaFlag';
 import { authApi } from '../../utils/services';
 import { ApiError, setToken } from '../../utils/api';
+import { InlineAlert } from './ui/inline-alert';
+import { Button } from './ui/button';
 
 interface LoginProps {
   onLogin: (user: AuthUser) => void;
@@ -153,7 +155,7 @@ export function Login({ onLogin }: LoginProps) {
 
   const titles: Record<AuthScreen, { title: string; subtitle: string }> = {
     login: {
-      title: 'Sign In',
+      title: 'Sign in to NIPMS',
       subtitle: 'Authorised access for company officers and MINECOFIN staff',
     },
     forgot: {
@@ -176,17 +178,18 @@ export function Login({ onLogin }: LoginProps) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="relative hidden w-[46%] shrink-0 flex-col justify-between overflow-hidden bg-[#002b75] lg:flex">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[#fad201]/10 blur-3xl" />
-          <div className="absolute -bottom-32 -left-20 h-[28rem] w-[28rem] rounded-full bg-[#00a651]/10 blur-3xl" />
+      <aside className="relative hidden w-[44%] shrink-0 flex-col justify-between overflow-hidden bg-rw-blue-dark lg:flex">
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rw-blue via-rw-yellow to-rw-green" />
+          <div className="absolute -right-20 top-24 h-72 w-72 rounded-full bg-rw-blue-light/20 blur-3xl" />
+          <div className="absolute -bottom-24 -left-16 h-80 w-80 rounded-full bg-rw-green/10 blur-3xl" />
         </div>
 
         <div className="relative z-10 p-10">
           <div className="flex items-center gap-4">
-            <RwandaFlag size="md" className="rounded-xl" />
+            <RwandaFlag size="md" className="rounded-lg" />
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-200/80">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-200/80">
                 Republic of Rwanda
               </p>
               <p className="text-xl font-bold text-white">NIPMS</p>
@@ -195,29 +198,43 @@ export function Login({ onLogin }: LoginProps) {
         </div>
 
         <div className="relative z-10 px-10">
-          <h1 className="font-serif text-[2.1rem] font-bold leading-[1.2] text-white">
+          <h1 className="text-[2rem] font-semibold leading-[1.25] text-white [font-family:var(--font-display)]">
             National Investment Portfolio Management System
           </h1>
           <p className="mt-5 max-w-md text-[15px] leading-relaxed text-blue-100/75">
             Secure portfolio oversight for government equity investments — provisioned
             accounts only, with email verification and password protections.
           </p>
+          <ul className="mt-8 space-y-3 text-sm text-blue-100/70">
+            <li className="flex items-start gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rw-yellow" aria-hidden />
+              SOE registry and portfolio monitoring
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rw-yellow" aria-hidden />
+              Structured reporting and approval workflows
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rw-yellow" aria-hidden />
+              Role-based access for ministry and company users
+            </li>
+          </ul>
         </div>
 
         <div className="relative z-10 border-t border-white/10 px-10 py-6">
-          <p className="text-xs text-blue-200/40">
+          <p className="text-xs text-blue-200/45">
             © 2026 Ministry of Finance and Economic Planning — Republic of Rwanda
           </p>
         </div>
       </aside>
 
-      <main className="flex flex-1 items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-blue-50/40 p-6 sm:p-10">
+      <main className="flex flex-1 items-center justify-center bg-page p-6 sm:p-10">
         <div className="w-full max-w-[420px]">
           <div className="mb-8 text-center lg:hidden">
             <div className="mx-auto mb-4 flex w-fit items-center gap-3">
-              <RwandaFlag size="sm" className="rounded-xl" />
+              <RwandaFlag size="sm" className="rounded-lg" />
               <div className="text-left">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#003da5]">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-rw-blue">
                   Republic of Rwanda
                 </p>
                 <p className="text-lg font-bold text-slate-900">NIPMS</p>
@@ -225,40 +242,40 @@ export function Login({ onLogin }: LoginProps) {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-300/30">
-            <div className="flex h-1.5">
-              <div className="flex-1 bg-[#003da5]" />
-              <div className="w-1/3 bg-[#fad201]" />
-              <div className="flex-1 bg-[#00a651]" />
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex h-1" aria-hidden>
+              <div className="flex-1 bg-rw-blue" />
+              <div className="w-1/4 bg-rw-yellow" />
+              <div className="flex-1 bg-rw-green" />
             </div>
 
-            <div className="p-8">
+            <div className="p-7 sm:p-8">
               {screen !== 'login' && screen !== 'verify' && (
                 <button
                   type="button"
                   onClick={goLogin}
                   className="mb-4 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800"
                 >
-                  <ArrowLeft className="h-3.5 w-3.5" /> Back to sign in
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Back to sign in
                 </button>
               )}
 
-              <div className="mb-7">
-                <h2 className="font-serif text-2xl font-bold text-slate-900">
+              <div className="mb-6">
+                <h2 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-display)]">
                   {titles[screen].title}
                 </h2>
                 <p className="mt-1.5 text-sm text-slate-500">{titles[screen].subtitle}</p>
               </div>
 
               {error && (
-                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <InlineAlert variant="danger" className="mb-4">
                   {error}
-                </div>
+                </InlineAlert>
               )}
               {info && (
-                <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                <InlineAlert variant="success" className="mb-4">
                   {info}
-                </div>
+                </InlineAlert>
               )}
 
               {screen === 'login' && (
@@ -280,26 +297,32 @@ export function Login({ onLogin }: LoginProps) {
                         setError('');
                         setInfo('');
                       }}
-                      className="text-xs font-medium text-[#003da5] hover:underline"
+                      className="text-xs font-medium text-rw-blue hover:underline"
                     >
                       Forgot password?
                     </button>
                   </div>
-                  <SubmitButton loading={loading} label="Sign In" />
+                  <Button type="submit" disabled={loading} className="h-11 w-full">
+                    {loading ? 'Signing in…' : 'Sign In'}
+                  </Button>
                 </form>
               )}
 
               {screen === 'forgot' && (
                 <form onSubmit={handleForgot} className="space-y-5">
                   <EmailField value={email} onChange={setEmail} />
-                  <SubmitButton loading={loading} label="Send reset link" />
+                  <Button type="submit" disabled={loading} className="h-11 w-full">
+                    {loading ? 'Please wait…' : 'Send reset link'}
+                  </Button>
                 </form>
               )}
 
               {screen === 'resend' && (
                 <form onSubmit={handleResend} className="space-y-5">
                   <EmailField value={email} onChange={setEmail} />
-                  <SubmitButton loading={loading} label="Resend verification email" />
+                  <Button type="submit" disabled={loading} className="h-11 w-full">
+                    {loading ? 'Please wait…' : 'Resend verification email'}
+                  </Button>
                 </form>
               )}
 
@@ -321,7 +344,9 @@ export function Login({ onLogin }: LoginProps) {
                     show={showPassword}
                     onToggle={() => setShowPassword((v) => !v)}
                   />
-                  <SubmitButton loading={loading} label="Update password" />
+                  <Button type="submit" disabled={loading} className="h-11 w-full">
+                    {loading ? 'Please wait…' : 'Update password'}
+                  </Button>
                 </form>
               )}
 
@@ -349,12 +374,15 @@ function EmailField({ value, onChange }: { value: string; onChange: (v: string) 
     <div>
       <label
         htmlFor="email"
-        className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-slate-500"
+        className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500"
       >
         Official Email Address
       </label>
       <div className="relative">
-        <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
+        <Mail
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          aria-hidden
+        />
         <input
           id="email"
           type="email"
@@ -363,7 +391,7 @@ function EmailField({ value, onChange }: { value: string; onChange: (v: string) 
           placeholder="name@minecofin.gov.rw"
           required
           autoComplete="username"
-          className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-[#003da5] focus:bg-white focus:ring-2 focus:ring-[#003da5]/15"
+          className="block h-11 w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20"
         />
       </div>
     </div>
@@ -389,42 +417,35 @@ function PasswordField({
     <div>
       <label
         htmlFor={id}
-        className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-slate-500"
+        className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500"
       >
         {label}
       </label>
       <div className="relative">
-        <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
+        <Lock
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          aria-hidden
+        />
         <input
           id={id}
           type={show ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           required
-          autoComplete={id.includes('new') || id.includes('confirm') ? 'new-password' : 'current-password'}
-          className="block w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-11 text-sm text-slate-900 outline-none transition focus:border-[#003da5] focus:bg-white focus:ring-2 focus:ring-[#003da5]/15"
+          autoComplete={
+            id.includes('new') || id.includes('confirm') ? 'new-password' : 'current-password'
+          }
+          className="block h-11 w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-11 text-sm text-slate-900 outline-none transition focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20"
         />
         <button
           type="button"
           onClick={onToggle}
-          className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600"
           aria-label={show ? 'Hide password' : 'Show password'}
         >
-          {show ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
     </div>
-  );
-}
-
-function SubmitButton({ loading, label }: { loading: boolean; label: string }) {
-  return (
-    <button
-      type="submit"
-      disabled={loading}
-      className="flex w-full items-center justify-center rounded-xl bg-[#003da5] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#002b75] disabled:opacity-60"
-    >
-      {loading ? 'Please wait…' : label}
-    </button>
   );
 }

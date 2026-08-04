@@ -66,16 +66,22 @@ export function ProcessWorkspace({ user, companies, onCreated }: ProcessWorkspac
         description="Prepare packages for the official approval chain — SOE creation, profile updates, planning & budgeting, quarterly and annual reports."
       />
 
-      <div className="flex flex-wrap gap-2">
+      <div
+        className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-xs"
+        role="tablist"
+        aria-label="Submission workspace processes"
+      >
         {visible.map((tab) => (
           <button
             key={tab.key}
             type="button"
+            role="tab"
+            aria-selected={active === tab.key}
             onClick={() => setActive(tab.key)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`rounded-lg px-3.5 py-2 text-sm font-medium transition ${
               active === tab.key
-                ? 'bg-rw-blue text-white shadow-sm'
-                : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                ? 'bg-rw-blue text-white'
+                : 'text-slate-700 hover:bg-slate-50'
             }`}
           >
             {tab.label}

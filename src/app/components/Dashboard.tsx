@@ -12,11 +12,14 @@ import {
   Cell,
 } from 'recharts';
 import { PageHeader, StatCard, Panel, PanelHeader, PanelBody } from './layout/PageHeader';
+import { EmptyState } from './ui/empty-state';
+import { PageSkeleton } from './ui/loading-state';
+import { StatusBadge } from './ui/status-badge';
 import { formatRwf } from '../../utils/format';
 import { ROLE_SHORT, STATUS_LABELS } from '../../utils/roles';
 import type { AuthUser, DashboardSummary, SubmissionStatus } from '../../types';
 
-const SECTOR_COLORS = ['#003DA5', '#00A651', '#FAD201', '#1E40AF', '#7C3AED', '#059669'];
+const SECTOR_COLORS = ['#003DA5', '#00A651', '#B45309', '#1E40AF', '#0F766E', '#475569'];
 
 interface DashboardProps {
   user: AuthUser;
@@ -24,17 +27,20 @@ interface DashboardProps {
 }
 
 export function Dashboard({ user, summary }: DashboardProps) {
-  const sectorData =
-    summary?.sectorAllocation.map((s, i) => ({
-      ...s,
-      color: SECTOR_COLORS[i % SECTOR_COLORS.length],
-      share:
-        summary.portfolioValue > 0
-          ? Math.round((s.value / summary.portfolioValue) * 1000) / 10
-          : 0,
-    })) ?? [];
+  if (!summary) {
+    return <PageSkeleton />;
+  }
 
-  const statusBars = Object.entries(summary?.submissionsByStatus ?? {}).map(([status, count]) => ({
+  const sectorData = summary.sectorAllocation.map((s, i) => ({
+    ...s,
+    color: SECTOR_COLORS[i % SECTOR_COLORS.length],
+    share:
+      summary.portfolioValue > 0
+        ? Math.round((s.value / summary.portfolioValue) * 1000) / 10
+        : 0,
+  }));
+
+  const statusBars = Object.entries(summary.submissionsByStatus).map(([status, count]) => ({
     status: STATUS_LABELS[status as SubmissionStatus] ?? status.replaceAll('_', ' '),
     count,
   }));
@@ -50,21 +56,21 @@ export function Dashboard({ user, summary }: DashboardProps) {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Active SOEs"
-          value={String(summary?.activeCompanies ?? 0)}
-          change={`${summary?.totalCompanies ?? 0} in registry`}
+          value={String(summary.activeCompanies)}
+          change={`${summary.totalCompanies} in registry`}
           icon={<Briefcase className="h-5 w-5" />}
           accent="blue"
         />
         <StatCard
           label="Portfolio Value"
-          value={formatRwf(summary?.portfolioValue ?? 0, true)}
+          value={formatRwf(summary.portfolioValue, true)}
           change="Government equity exposure"
           icon={<TrendingUp className="h-5 w-5" />}
           accent="green"
         />
         <StatCard
           label="Pending Submissions"
-          value={String(summary?.pendingSubmissions ?? 0)}
+          value={String(summary.pendingSubmissions)}
           change="Awaiting review or approval"
           changeType="neutral"
           icon={<GitBranch className="h-5 w-5" />}
@@ -72,7 +78,7 @@ export function Dashboard({ user, summary }: DashboardProps) {
         />
         <StatCard
           label="Approved Reports"
-          value={String(summary?.approvedThisQuarter ?? 0)}
+          value={String(summary.approvedThisQuarter)}
           change="Completed in current cycle"
           icon={<Award className="h-5 w-5" />}
           accent="blue"
@@ -87,7 +93,11 @@ export function Dashboard({ user, summary }: DashboardProps) {
           />
           <PanelBody>
             {sectorData.length === 0 ? (
-              <p className="text-sm text-slate-500">No portfolio data available.</p>
+              <EmptyState
+                compact
+                title="No portfolio data"
+                description="Sector allocation will appear once entities are registered with investment values."
+              />
             ) : (
               <>
                 <ResponsiveContainer width="100%" height={220}>
@@ -112,8 +122,15 @@ export function Dashboard({ user, summary }: DashboardProps) {
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {sectorData.map((s) => (
                     <div key={s.name} className="flex items-center gap-2 text-xs text-slate-600">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
-                      {s.name} ({s.share}%)
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                        style={{ background: s.color }}
+                        aria-hidden
+                      />
+                      <span>
+                        {s.name}{' '}
+                        <span className="font-medium text-slate-800">({s.share}%)</span>
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -126,10 +143,14 @@ export function Dashboard({ user, summary }: DashboardProps) {
           <PanelHeader title="Submission Pipeline" description="Counts by workflow status" />
           <PanelBody>
             {statusBars.length === 0 ? (
-              <p className="text-sm text-slate-500">No submissions in the system yet.</p>
+              <EmptyState
+                compact
+                title="No submissions yet"
+                description="Workflow status counts will appear when packages enter the approval pipeline."
+              />
             ) : (
               <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={statusBars}>
+                <BarChart data={statusBars} margin={{ bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                   <XAxis
                     dataKey="status"
@@ -137,11 +158,16 @@ export function Dashboard({ user, summary }: DashboardProps) {
                     axisLine={false}
                     tickLine={false}
                     interval={0}
-                    angle={-20}
+                    angle={-18}
                     textAnchor="end"
                     height={70}
                   />
-                  <YAxis allowDecimals={false} tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{ fill: '#64748b', fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <Tooltip />
                   <Bar dataKey="count" fill="#003DA5" radius={[4, 4, 0, 0]} name="Submissions" />
                 </BarChart>
@@ -151,31 +177,33 @@ export function Dashboard({ user, summary }: DashboardProps) {
         </Panel>
       </div>
 
-      {summary && summary.companies.length > 0 && (
+      {summary.companies.length > 0 && (
         <Panel>
           <PanelHeader title="Portfolio Entities" description="Registered state-owned enterprises" />
           <PanelBody className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="nipms-table">
                 <thead>
-                  <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wider text-slate-500">
-                    <th className="px-5 py-3 font-semibold">Code</th>
-                    <th className="px-5 py-3 font-semibold">Entity</th>
-                    <th className="px-5 py-3 font-semibold">Sector</th>
-                    <th className="px-5 py-3 font-semibold text-right">Investment</th>
-                    <th className="px-5 py-3 font-semibold">Status</th>
+                  <tr>
+                    <th>Code</th>
+                    <th>Entity</th>
+                    <th className="hidden sm:table-cell">Sector</th>
+                    <th className="text-right">Investment</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody>
                   {summary.companies.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50">
-                      <td className="px-5 py-3 font-medium text-rw-blue">{c.code}</td>
-                      <td className="px-5 py-3 text-slate-900">{c.name}</td>
-                      <td className="px-5 py-3 text-slate-600">{c.sector}</td>
-                      <td className="px-5 py-3 text-right font-medium text-slate-900">
+                    <tr key={c.id}>
+                      <td className="font-medium text-rw-blue">{c.code}</td>
+                      <td className="font-medium text-slate-900">{c.name}</td>
+                      <td className="hidden sm:table-cell">{c.sector}</td>
+                      <td className="text-right font-medium text-slate-900 tabular-nums">
                         {formatRwf(c.investmentAmount, true)}
                       </td>
-                      <td className="px-5 py-3 capitalize text-slate-600">{c.status.replaceAll('_', ' ')}</td>
+                      <td>
+                        <StatusBadge status={c.status} kind="entity" />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -185,25 +213,30 @@ export function Dashboard({ user, summary }: DashboardProps) {
         </Panel>
       )}
 
-      {summary && summary.recentSubmissions.length > 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Recent workflow activity
-          </p>
-          <div className="mt-3 space-y-2">
+      {summary.recentSubmissions.length > 0 && (
+        <Panel>
+          <PanelHeader
+            title="Recent Workflow Activity"
+            description="Latest submission packages requiring attention or recently updated"
+          />
+          <PanelBody className="space-y-2 p-4 sm:p-5">
             {summary.recentSubmissions.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
+                className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
-                <span className="font-medium text-slate-800">{item.title}</span>
-                <span className="text-xs text-slate-500">
-                  {STATUS_LABELS[item.status] ?? item.status}
-                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-900">{item.title}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    {item.companyName}
+                    {item.period ? ` · ${item.period}` : ''}
+                  </p>
+                </div>
+                <StatusBadge status={item.status} kind="submission" className="self-start sm:self-auto" />
               </div>
             ))}
-          </div>
-        </div>
+          </PanelBody>
+        </Panel>
       )}
     </div>
   );

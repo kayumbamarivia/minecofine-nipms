@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
-import { PageHeader, Panel, PanelBody } from './layout/PageHeader';
+import { StatusBadge } from './ui/status-badge';
+import { EmptyState } from './ui/empty-state';
+import { LoadingState } from './ui/loading-state';
+import { PageHeader, Panel, PanelBody, PanelHeader } from './layout/PageHeader';
 import { usersApi } from '../../utils/services';
 import { ROLE_LABELS } from '../../utils/roles';
 import type { AuthUser, ManagedUser, UserRole } from '../../types';
@@ -19,9 +22,13 @@ const ROLE_OPTIONS: UserRole[] = [
   'leadership',
 ];
 
+const inputClass =
+  'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20';
+
 export function UserAdminPanel({ user, companies }: UserAdminPanelProps) {
   const [rows, setRows] = useState<ManagedUser[]>([]);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
     email: '',
     fullName: '',
@@ -36,9 +43,11 @@ export function UserAdminPanel({ user, companies }: UserAdminPanelProps) {
   };
 
   useEffect(() => {
-    void load().catch((error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to load users');
-    });
+    void load()
+      .catch((error) => {
+        toast.error(error instanceof Error ? error.message : 'Failed to load users');
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const createUser = async () => {
@@ -96,8 +105,8 @@ export function UserAdminPanel({ user, companies }: UserAdminPanelProps) {
       />
 
       <Panel>
+        <PanelHeader title="Create account" />
         <PanelBody className="space-y-4">
-          <p className="text-sm font-semibold text-slate-900">Create account</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm">
               <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
@@ -106,7 +115,7 @@ export function UserAdminPanel({ user, companies }: UserAdminPanelProps) {
               <input
                 value={form.fullName}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                className={inputClass}
               />
             </label>
             <label className="block text-sm">
@@ -117,7 +126,7 @@ export function UserAdminPanel({ user, companies }: UserAdminPanelProps) {
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                className={inputClass}
               />
             </label>
             <label className="block text-sm">
@@ -127,7 +136,7 @@ export function UserAdminPanel({ user, companies }: UserAdminPanelProps) {
               <input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                className={inputClass}
               />
             </label>
             <label className="block text-sm">
@@ -137,7 +146,7 @@ export function UserAdminPanel({ user, companies }: UserAdminPanelProps) {
               <select
                 value={form.role}
                 onChange={(e) => setForm({ ...form, role: e.target.value as UserRole })}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                className={inputClass}
               >
                 {ROLE_OPTIONS.filter((role) => {
                   if (role === 'leadership' || role === 'department_head') return canAssignSenior;
@@ -157,7 +166,7 @@ export function UserAdminPanel({ user, companies }: UserAdminPanelProps) {
                 <select
                   value={form.companyId}
                   onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                  className={inputClass}
                 >
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -177,55 +186,75 @@ export function UserAdminPanel({ user, companies }: UserAdminPanelProps) {
         </PanelBody>
       </Panel>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wider text-slate-500">
-              <th className="px-4 py-3">User</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Company</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((row) => (
-              <tr key={row.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3">
-                  <p className="font-medium text-slate-900">{row.fullName}</p>
-                  <p className="text-xs text-slate-500">{row.email}</p>
-                </td>
-                <td className="px-4 py-3 text-slate-700">{ROLE_LABELS[row.role]}</td>
-                <td className="px-4 py-3 text-slate-600">{row.companyName || '— Ministry'}</td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-col gap-1 text-xs">
-                    <span className={row.isActive ? 'text-emerald-700' : 'text-red-700'}>
-                      {row.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                    <span className={row.emailVerified ? 'text-slate-600' : 'text-amber-700'}>
-                      {row.emailVerified ? 'Email verified' : 'Pending verification'}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex justify-end gap-2">
-                    {!row.emailVerified && (
-                      <Button size="sm" variant="outline" onClick={() => void resend(row.id)}>
-                        Resend invite
-                      </Button>
-                    )}
-                    {row.id !== user.id && (
-                      <Button size="sm" variant="outline" onClick={() => void toggleActive(row)}>
-                        {row.isActive ? 'Deactivate' : 'Activate'}
-                      </Button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Panel className="overflow-hidden">
+        {loading ? (
+          <PanelBody>
+            <LoadingState label="Loading users…" />
+          </PanelBody>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="No users yet"
+            description="Provisioned NIPMS accounts will appear in this directory."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="nipms-table">
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Role</th>
+                  <th>Company</th>
+                  <th>Status</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id}>
+                    <td>
+                      <p className="font-medium text-slate-900">{row.fullName}</p>
+                      <p className="text-xs text-slate-500">{row.email}</p>
+                    </td>
+                    <td>{ROLE_LABELS[row.role]}</td>
+                    <td>{row.companyName || '— Ministry'}</td>
+                    <td>
+                      <div className="flex flex-col items-start gap-1.5">
+                        <StatusBadge
+                          status={row.isActive ? 'active' : 'inactive'}
+                          kind="entity"
+                        />
+                        <span
+                          className={`text-xs ${row.emailVerified ? 'text-slate-500' : 'text-amber-700'}`}
+                        >
+                          {row.emailVerified ? 'Email verified' : 'Pending verification'}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flex justify-end gap-2">
+                        {!row.emailVerified && (
+                          <Button size="sm" variant="outline" onClick={() => void resend(row.id)}>
+                            Resend invite
+                          </Button>
+                        )}
+                        {row.id !== user.id && (
+                          <Button
+                            size="sm"
+                            variant={row.isActive ? 'outline' : 'success'}
+                            onClick={() => void toggleActive(row)}
+                          >
+                            {row.isActive ? 'Deactivate' : 'Activate'}
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }

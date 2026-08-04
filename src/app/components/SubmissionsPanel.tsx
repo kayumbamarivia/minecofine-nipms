@@ -13,9 +13,11 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
+import { StatusBadge } from './ui/status-badge';
+import { EmptyState } from './ui/empty-state';
+import { LoadingState } from './ui/loading-state';
 import { DocumentPreviewDialog } from './DocumentPreviewDialog';
-import { PageHeader, Panel, PanelBody } from './layout/PageHeader';
+import { PageHeader, Panel, PanelBody, StatCard } from './layout/PageHeader';
 import { documentsApi, submissionsApi } from '../../utils/services';
 import { getToken } from '../../utils/api';
 import {
@@ -24,7 +26,6 @@ import {
   canEditSubmissionFeedback,
   canReturnSubmission,
   canSubmitSubmission,
-  STATUS_COLORS,
   STATUS_LABELS,
 } from '../../utils/roles';
 import type {
@@ -217,32 +218,42 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Stat label="Total Submissions" value={String(submissions.length)} />
-        <Stat label="Awaiting Action" value={String(pending)} accent="amber" />
-        <Stat
+        <StatCard label="Total Submissions" value={String(submissions.length)} accent="slate" />
+        <StatCard
+          label="Awaiting Action"
+          value={String(pending)}
+          accent="yellow"
+          icon={<Clock className="h-5 w-5" />}
+        />
+        <StatCard
           label="Approved"
           value={String(submissions.filter((s) => s.status === 'approved').length)}
           accent="green"
+          icon={<CheckCircle2 className="h-5 w-5" />}
         />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
         <Panel className="lg:col-span-2">
           <PanelBody className="p-0">
-            <div className="border-b border-slate-100 px-4 py-3">
+            <div className="border-b border-slate-100 px-5 py-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Inbox</p>
             </div>
             <div className="max-h-[520px] divide-y divide-slate-100 overflow-y-auto">
               {submissions.length === 0 && (
-                <p className="p-6 text-center text-sm text-slate-500">No submissions yet.</p>
+                <EmptyState
+                  compact
+                  title="No submissions yet"
+                  description="New drafts and packages awaiting review will appear here."
+                />
               )}
               {submissions.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setSelectedId(item.id)}
-                  className={`w-full px-4 py-4 text-left transition hover:bg-slate-50 ${
-                    selectedId === item.id ? 'bg-rw-blue/5' : ''
+                  className={`w-full px-5 py-4 text-left transition hover:bg-slate-50 ${
+                    selectedId === item.id ? 'border-l-2 border-l-rw-blue bg-rw-blue/5' : ''
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -252,7 +263,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                         {item.companyCode} · {TYPE_LABELS[item.type]}
                       </p>
                     </div>
-                    <StatusBadge status={item.status} />
+                    <StatusBadge status={item.status} kind="submission" />
                   </div>
                 </button>
               ))}
@@ -263,7 +274,11 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
         <Panel className="lg:col-span-3">
           <PanelBody>
             {!selected ? (
-              <p className="text-sm text-slate-500">Select a submission to review.</p>
+              <EmptyState
+                compact
+                title="Select a submission"
+                description="Choose an item from the inbox to review details, history, and actions."
+              />
             ) : (
               <div className="space-y-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -274,7 +289,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                       {TYPE_LABELS[selected.type]}
                     </p>
                   </div>
-                  <StatusBadge status={selected.status} />
+                  <StatusBadge status={selected.status} kind="submission" />
                 </div>
 
                 {(selected.comments || editingActiveComment) && (
@@ -332,9 +347,13 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Review history & feedback
                   </p>
-                  {eventsBusy && <p className="mt-3 text-sm text-slate-500">Loading history…</p>}
+                  {eventsBusy && <LoadingState compact label="Loading history…" />}
                   {!eventsBusy && events.length === 0 && (
-                    <p className="mt-3 text-sm text-slate-500">No workflow history yet.</p>
+                    <EmptyState
+                      compact
+                      title="No workflow history yet"
+                      description="Actions and feedback notes will appear here as the review progresses."
+                    />
                   )}
                   {!eventsBusy && events.length > 0 && (
                     <div className="mt-3 space-y-3">
@@ -444,7 +463,9 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                   </div>
                 )}
 
-                {selected.payload?.ratios && typeof selected.payload.ratios === 'object' && (
+                {selected.payload?.ratios != null &&
+                typeof selected.payload.ratios === 'object' &&
+                !Array.isArray(selected.payload.ratios) ? (
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                       Computed financial ratios
@@ -470,7 +491,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                         </ul>
                       )}
                   </div>
-                )}
+                ) : null}
 
                 <PayloadSummary payload={selected.payload ?? {}} />
 
@@ -478,13 +499,13 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Linked supporting documents
                   </p>
-                  {attachmentsBusy && (
-                    <p className="mt-3 text-sm text-slate-500">Loading documents…</p>
-                  )}
+                  {attachmentsBusy && <LoadingState compact label="Loading documents…" />}
                   {!attachmentsBusy && attachments.length === 0 && (
-                    <p className="mt-3 text-sm text-slate-500">
-                      No files are linked to this submission.
-                    </p>
+                    <EmptyState
+                      compact
+                      title="No linked documents"
+                      description="Supporting files attached to this submission will appear here."
+                    />
                   )}
                   {!attachmentsBusy && attachments.length > 0 && (
                     <div className="mt-3 space-y-2">
@@ -541,6 +562,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                   {canApproveSubmission(user.role, selected.status) && (
                     <Button
                       disabled={busy}
+                      variant="success"
                       className="gap-2"
                       onClick={() =>
                         runAction(async () => {
@@ -561,7 +583,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20"
                       />
                       <Button
-                        variant="outline"
+                        variant="warning"
                         disabled={busy || !returnComment.trim()}
                         className="w-fit gap-2"
                         onClick={() =>
@@ -590,35 +612,6 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
           if (!open) setPreviewDocument(null);
         }}
       />
-    </div>
-  );
-}
-
-function StatusBadge({ status }: Readonly<{ status: SubmissionStatus }>) {
-  return (
-    <Badge variant="outline" className={`shrink-0 text-[10px] ${STATUS_COLORS[status]}`}>
-      {STATUS_LABELS[status]}
-    </Badge>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  accent,
-}: Readonly<{
-  label: string;
-  value: string;
-  accent?: 'amber' | 'green';
-}>) {
-  let colors = 'border-slate-200 bg-white text-slate-900';
-  if (accent === 'amber') colors = 'border-amber-200 bg-amber-50 text-amber-900';
-  if (accent === 'green') colors = 'border-green-200 bg-green-50 text-green-900';
-
-  return (
-    <div className={`rounded-xl border px-4 py-3 ${colors}`}>
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="text-2xl font-bold">{value}</p>
     </div>
   );
 }
@@ -668,11 +661,11 @@ function WorkflowHint({
 
 function humanizeKey(key: string) {
   return key
-    .replaceAll(/([A-Z])/g, ' $1')
-    .replaceAll('_', ' ')
-    .replaceAll(/\s+/g, ' ')
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim()
-    .replace(/^./, (c) => c.toUpperCase());
+    .replace(/^./, (c: string) => c.toUpperCase());
 }
 
 function formatPayloadValue(key: string, value: unknown): string {

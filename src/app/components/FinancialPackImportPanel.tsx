@@ -80,10 +80,10 @@ export function FinancialPackImportPanel({
   };
 
   return (
-    <section className="rounded-xl border border-sky-200 bg-sky-50/70 p-4">
+    <section className="rounded-xl border border-rw-blue/20 bg-rw-blue-subtle/60 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-2">
-          <FileSpreadsheet className="mt-0.5 h-4 w-4 shrink-0 text-sky-700" />
+          <FileSpreadsheet className="mt-0.5 h-4 w-4 shrink-0 text-rw-blue" />
           <div>
             <p className="text-sm font-semibold text-slate-900">
               Auto-fill from the official Excel template

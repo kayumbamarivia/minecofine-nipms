@@ -8,14 +8,22 @@ function Tabs({ className, ...props }: React.ComponentProps<typeof TabsPrimitive
 }
 
 function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.List>) {
-  return <TabsPrimitive.List className={cn('inline-flex items-center rounded-xl bg-slate-100 p-1', className)} {...props} />;
+  return (
+    <TabsPrimitive.List
+      className={cn(
+        'inline-flex h-11 w-full items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1',
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
   return (
     <TabsPrimitive.Trigger
       className={cn(
-        'inline-flex h-10 items-center justify-center rounded-lg px-4 text-sm font-medium text-slate-700 transition data-[state=active]:bg-white data-[state=active]:text-slate-900',
+        'inline-flex h-9 flex-1 items-center justify-center rounded-md px-3 text-sm font-medium text-slate-600 transition data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-xs focus-visible:ring-2 focus-visible:ring-rw-blue/30',
         className,
       )}
       {...props}

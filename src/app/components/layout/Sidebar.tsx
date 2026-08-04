@@ -1,152 +1,170 @@
-import {
-  LayoutDashboard,
-  Briefcase,
-  CheckSquare,
-  FileText,
-  ClipboardEdit,
-  Activity,
-  Building2,
-  ChevronRight,
-  GitBranch,
-  LineChart,
-  Users,
-} from 'lucide-react';
+import { type ReactNode } from 'react';
+import { LogOut, X } from 'lucide-react';
+import { Button } from '../ui/button';
 import type { AppView, AuthUser } from '../../../types';
 import { RwandaFlag } from '../brand/RwandaFlag';
-import {
-  canCreateSubmission,
-  canViewLeadershipDashboards,
-  isCompanyRole,
-  isMinistryRole,
-} from '../../../utils/roles';
+import { leadershipNav, mainNav, visibleNav, type NavItem } from './nav';
+import { cn } from '../ui/utils';
 
 interface SidebarProps {
   currentView: AppView;
   onNavigate: (view: AppView) => void;
   user: AuthUser;
+  onLogout: () => void;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-interface NavItem {
-  key: AppView;
-  label: string;
-  icon: typeof LayoutDashboard;
-  show?: (user: AuthUser) => boolean;
-}
+function NavContent({
+  currentView,
+  onNavigate,
+  user,
+  onLogout,
+  onClose,
+}: {
+  currentView: AppView;
+  onNavigate: (view: AppView) => void;
+  user: AuthUser;
+  onLogout: () => void;
+  onClose?: () => void;
+}) {
+  const main = visibleNav(mainNav, user);
+  const leadership = visibleNav(leadershipNav, user);
 
-const mainNav: NavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { key: 'portfolio', label: 'Investment Portfolio', icon: Briefcase },
-  { key: 'submissions', label: 'Submissions & Approvals', icon: GitBranch },
-  {
-    key: 'processes',
-    label: 'Submission Workspace',
-    icon: ClipboardEdit,
-    show: (u) => canCreateSubmission(u.role),
-  },
-  { key: 'action-points', label: 'Action Points', icon: CheckSquare },
-  { key: 'documents', label: 'Document Registry', icon: FileText },
-  {
-    key: 'reports',
-    label: 'Reports & Extracts',
-    icon: LineChart,
-    show: (u) => canViewLeadershipDashboards(u.role) || isCompanyRole(u.role),
-  },
-  {
-    key: 'users',
-    label: 'User Administration',
-    icon: Users,
-    show: (u) => isMinistryRole(u.role),
-  },
-];
+  const handleNavigate = (view: AppView) => {
+    onNavigate(view);
+    onClose?.();
+  };
 
-const leadershipNav: NavItem[] = [
-  {
-    key: 'operations',
-    label: 'Operations',
-    icon: Activity,
-    show: (u) => canViewLeadershipDashboards(u.role),
-  },
-  {
-    key: 'inter-ministerial',
-    label: 'Inter-Ministerial Hub',
-    icon: Building2,
-    show: (u) => canViewLeadershipDashboards(u.role),
-  },
-];
-
-export function Sidebar({ currentView, onNavigate, user }: SidebarProps) {
   const renderNavItem = (item: NavItem) => {
-    if (item.show && !item.show(user)) return null;
-
     const isActive = currentView === item.key;
     const Icon = item.icon;
 
     return (
       <button
         key={item.key}
-        onClick={() => onNavigate(item.key)}
-        className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-all duration-150 ${
-          isActive
-            ? 'bg-white/15 text-white shadow-sm'
-            : 'text-blue-100/80 hover:bg-white/10 hover:text-white'
-        }`}
+        type="button"
+        onClick={() => handleNavigate(item.key)}
+        aria-current={isActive ? 'page' : undefined}
+        className={cn('sidebar-nav-link', isActive && 'active')}
       >
-        <Icon
-          className={`h-[18px] w-[18px] shrink-0 ${
-            isActive ? 'text-rw-yellow' : 'text-blue-200/70 group-hover:text-blue-100'
-          }`}
-        />
-        <span className="flex-1">{item.label}</span>
-        {isActive && <ChevronRight className="h-4 w-4 text-rw-yellow" />}
+        <Icon className="nav-icon" strokeWidth={1.6} aria-hidden />
+        <span className="min-w-0 flex-1 leading-snug">{item.label}</span>
       </button>
     );
   };
 
-  const visibleLeadership = leadershipNav.some((item) => !item.show || item.show(user));
-
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 flex-col bg-gradient-to-b from-rw-blue-dark via-rw-blue to-rw-blue-dark lg:flex">
-      <div className="border-b border-white/10 px-5 py-5">
-        <div className="flex items-center gap-3">
-          <RwandaFlag size="sm" />
-          <div className="min-w-0">
-            <p className="truncate text-[11px] font-medium uppercase tracking-wider text-blue-200/70">
-              Republic of Rwanda
-            </p>
-            <p className="truncate text-sm font-semibold leading-tight text-white">NIPMS</p>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 px-5 pb-4 pt-7">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <RwandaFlag size="sm" />
+            <div className="min-w-0 self-center">
+              <p className="truncate leading-none text-[1.35rem] font-semibold tracking-tight text-white [font-family:var(--font-display)]">
+                NIPMS
+              </p>
+            </div>
           </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-white/80 hover:bg-white/10 lg:hidden"
+              aria-label="Close navigation"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-blue-200/60">
-          National Investment Portfolio Management System
-        </p>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-blue-300/50">
-          Main Menu
-        </p>
-        {mainNav.map(renderNavItem)}
+      <nav
+        className={cn(
+          'min-h-0 flex-1 py-5 pr-0',
+          onClose ? 'overflow-x-hidden overflow-y-auto' : 'overflow-hidden',
+        )}
+        aria-label="Main navigation"
+      >
+        {main.map(renderNavItem)}
 
-        {visibleLeadership && (
+        {leadership.length > 0 && (
           <>
-            <div className="my-4 border-t border-white/10" />
-            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-blue-300/50">
-              Leadership & Analytics
-            </p>
-            {leadershipNav.map(renderNavItem)}
+            <div className="my-3 ml-4 mr-6 border-t border-white/10" />
+            {leadership.map(renderNavItem)}
           </>
         )}
       </nav>
 
-      <div className="border-t border-white/10 p-4">
-        <div className="rounded-lg bg-white/10 p-3">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-blue-200/60">
-            {user.companyName ?? 'MINECOFIN'}
-          </p>
-          <p className="mt-1 text-xs font-semibold leading-snug text-white">{user.fullName}</p>
-          <p className="mt-2 text-[10px] text-blue-200/50">Kigali, Rwanda</p>
+      <div className="shrink-0 border-t border-white/10 p-4">
+        <div className="rounded-xl bg-white/10 px-3 py-2.5">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onLogout}
+            className="w-full justify-center gap-1.5 border-0 bg-white text-rw-blue-dark hover:bg-white/90"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Sign Out</span>
+          </Button>
         </div>
       </div>
-    </aside>
+    </div>
+  );
+}
+
+export function Sidebar({
+  currentView,
+  onNavigate,
+  user,
+  onLogout,
+  mobileOpen = false,
+  onMobileClose,
+}: SidebarProps) {
+  return (
+    <>
+      {/* Desktop — overflow visible so carved corners are not clipped */}
+      <aside className="nipms-sidebar fixed inset-y-0 left-0 z-40 hidden w-64 lg:block">
+        <NavContent currentView={currentView} onNavigate={onNavigate} user={user} onLogout={onLogout} />
+      </aside>
+
+      {/* Mobile drawer */}
+      <div
+        className={cn(
+          'fixed inset-0 z-50 lg:hidden',
+          mobileOpen ? 'pointer-events-auto' : 'pointer-events-none',
+        )}
+        aria-hidden={!mobileOpen}
+      >
+        <button
+          type="button"
+          className={cn(
+            'absolute inset-0 bg-slate-900/50 transition-opacity',
+            mobileOpen ? 'opacity-100' : 'opacity-0',
+          )}
+          aria-label="Close navigation overlay"
+          onClick={onMobileClose}
+          tabIndex={mobileOpen ? 0 : -1}
+        />
+        <aside
+          className={cn(
+            'nipms-sidebar absolute inset-y-0 left-0 w-[min(20rem,88vw)] shadow-md transition-transform duration-200',
+            mobileOpen ? 'translate-x-0' : '-translate-x-full',
+          )}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation menu"
+        >
+          <NavContent
+            currentView={currentView}
+            onNavigate={onNavigate}
+            user={user}
+            onLogout={onLogout}
+            onClose={onMobileClose}
+          />
+        </aside>
+      </div>
+    </>
   );
 }

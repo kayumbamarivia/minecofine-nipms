@@ -286,7 +286,7 @@ function StatementTable({
   return (
     <div className="space-y-3">
       {hint && (
-        <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+        <p className="rounded-lg border border-rw-blue/20 bg-rw-blue-subtle px-3 py-2 text-xs text-rw-blue-dark">
           {hint}
         </p>
       )}

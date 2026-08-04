@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Download, Eye, Trash2, Upload } from 'lucide-react';
 import { Button } from './ui/button';
-import { PageHeader, Panel, PanelBody } from './layout/PageHeader';
+import { EmptyState } from './ui/empty-state';
+import { PageHeader, Panel, PanelBody, PanelHeader } from './layout/PageHeader';
 import { DocumentPreviewDialog } from './DocumentPreviewDialog';
 import { documentsApi } from '../../utils/services';
 import { getToken } from '../../utils/api';
@@ -27,6 +28,9 @@ const CATEGORY_LABELS: Record<StoredDocumentCategory, string> = {
   investment_memo: 'Investment memo',
   other: 'Other',
 };
+
+const inputClass =
+  'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20';
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -119,18 +123,19 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
         badge="Company folder"
         title="Document Registry"
         description="Store statutory and review attachments: registration documents, performance contracts, signed statements, board minutes and related files."
+        meta={
+          <p className="text-xs text-slate-500">
+            Object storage:{' '}
+            <span className="font-medium text-slate-700">
+              {storageDriver === 's3' ? 'MinIO / S3' : 'Local disk'}
+            </span>
+          </p>
+        }
       />
 
-      <p className="text-xs text-slate-500">
-        Object storage:{' '}
-        <span className="font-medium text-slate-700">
-          {storageDriver === 's3' ? 'MinIO / S3' : 'Local disk'}
-        </span>
-      </p>
-
       <Panel>
+        <PanelHeader title="Upload document" />
         <PanelBody className="space-y-4">
-          <p className="text-sm font-semibold text-slate-900">Upload document</p>
           <div className="grid gap-3 sm:grid-cols-2">
             {!user.companyId && (
               <label className="block text-sm">
@@ -140,7 +145,7 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
                 <select
                   value={companyId}
                   onChange={(e) => setCompanyId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                  className={inputClass}
                 >
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -157,7 +162,7 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as StoredDocumentCategory)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                className={inputClass}
               >
                 {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -173,7 +178,7 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                className={inputClass}
                 placeholder="e.g. REG Board Minutes Q1 2026"
               />
             </label>
@@ -184,7 +189,7 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
               <input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                className={inputClass}
               />
             </label>
             <label className="block text-sm sm:col-span-2">
@@ -204,69 +209,71 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
         </PanelBody>
       </Panel>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wider text-slate-500">
-              <th className="px-4 py-3">Document</th>
-              <th className="px-4 py-3">Company</th>
-              <th className="px-4 py-3">Category</th>
-              <th className="px-4 py-3">Size</th>
-              <th className="px-4 py-3">Uploaded by</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {docs.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
-                  No documents in the registry yet.
-                </td>
-              </tr>
-            )}
-            {docs.map((doc) => (
-              <tr key={doc.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3">
-                  <p className="font-medium text-slate-900">{doc.name}</p>
-                  <p className="text-xs text-slate-500">{doc.originalName}</p>
-                </td>
-                <td className="px-4 py-3 text-slate-700">{doc.companyName}</td>
-                <td className="px-4 py-3 text-slate-600">{CATEGORY_LABELS[doc.category]}</td>
-                <td className="px-4 py-3 text-slate-600">{formatSize(doc.sizeBytes)}</td>
-                <td className="px-4 py-3 text-slate-600">{doc.uploadedByName}</td>
-                <td className="px-4 py-3">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1"
-                      onClick={() => setPreviewDocument(doc)}
-                    >
-                      <Eye className="h-3.5 w-3.5" /> View
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1"
-                      onClick={() => void download(doc.id, doc.originalName)}
-                    >
-                      <Download className="h-3.5 w-3.5" /> Download
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1 text-red-700"
-                      onClick={() => void remove(doc.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Panel className="overflow-hidden">
+        {docs.length === 0 ? (
+          <EmptyState
+            title="No documents yet"
+            description="Uploaded statutory and review attachments will appear in this registry."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="nipms-table">
+              <thead>
+                <tr>
+                  <th>Document</th>
+                  <th>Company</th>
+                  <th>Category</th>
+                  <th>Size</th>
+                  <th>Uploaded by</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {docs.map((doc) => (
+                  <tr key={doc.id}>
+                    <td>
+                      <p className="font-medium text-slate-900">{doc.name}</p>
+                      <p className="text-xs text-slate-500">{doc.originalName}</p>
+                    </td>
+                    <td>{doc.companyName}</td>
+                    <td>{CATEGORY_LABELS[doc.category]}</td>
+                    <td>{formatSize(doc.sizeBytes)}</td>
+                    <td>{doc.uploadedByName}</td>
+                    <td>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1"
+                          onClick={() => setPreviewDocument(doc)}
+                        >
+                          <Eye className="h-3.5 w-3.5" /> View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1"
+                          onClick={() => void download(doc.id, doc.originalName)}
+                        >
+                          <Download className="h-3.5 w-3.5" /> Download
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 text-red-700"
+                          onClick={() => void remove(doc.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
       <DocumentPreviewDialog
         document={previewDocument}
         open={previewDocument !== null}

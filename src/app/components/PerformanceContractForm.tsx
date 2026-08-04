@@ -99,47 +99,49 @@ function ObjectiveTable({
           Add as many objectives as this company needs.
         </p>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
         <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          <thead className="bg-slate-50/90 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             <tr>
-              <th className="w-24 px-3 py-2">No.</th>
-              <th className="min-w-56 px-3 py-2">Strategic objective</th>
-              <th className="min-w-72 px-3 py-2">Description</th>
-              <th className="w-14 px-3 py-2"><span className="sr-only">Actions</span></th>
+              <th className="w-24 px-4 py-3">No.</th>
+              <th className="min-w-56 px-4 py-3">Strategic objective</th>
+              <th className="min-w-72 px-4 py-3">Description</th>
+              <th className="w-14 px-4 py-3">
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {rows.map((row, index) => (
-              <tr key={row.rowKey} className="bg-white">
-                <td className="px-3 py-2">
+              <tr key={row.rowKey} className="bg-white align-top hover:bg-slate-50/50">
+                <td className="px-4 py-3">
                   <input
                     value={row.id}
                     onChange={(event) => update(index, 'id', event.target.value)}
-                    className="w-20 rounded border border-slate-200 px-2 py-2"
+                    className="w-20 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-rw-blue focus:bg-white focus:ring-2 focus:ring-rw-blue/20"
                   />
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-4 py-3">
                   <input
                     value={row.objective}
                     onChange={(event) => update(index, 'objective', event.target.value)}
-                    className="w-full rounded border border-slate-200 px-2 py-2"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-rw-blue focus:bg-white focus:ring-2 focus:ring-rw-blue/20"
                   />
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-4 py-3">
                   <input
                     value={row.description}
                     onChange={(event) => update(index, 'description', event.target.value)}
-                    className="w-full rounded border border-slate-200 px-2 py-2"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-rw-blue focus:bg-white focus:ring-2 focus:ring-rw-blue/20"
                   />
                 </td>
-                <td className="px-3 py-2">
+                <td className="px-4 py-3">
                   <button
                     type="button"
                     aria-label={`Remove objective ${index + 1}`}
                     onClick={() => onChange(rows.filter((_, rowIndex) => rowIndex !== index))}
                     disabled={rows.length === 1}
-                    className="rounded p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
+                    className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -180,74 +182,84 @@ function KpiTable({
 
   return (
     <section className="space-y-3">
-      <h4 className="text-sm font-semibold text-slate-900">{title}</h4>
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
-        <table className="min-w-[980px] text-sm">
-          <thead className="bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            <tr>
-              <th className="w-28 px-3 py-2">KPI</th>
-              <th className="w-32 px-3 py-2">Baseline</th>
-              <th className="w-32 px-3 py-2">Target</th>
-              <th className="w-32 px-3 py-2">Actual</th>
-              <th className="w-24 px-3 py-2">Score (1–5)</th>
-              <th className="min-w-72 px-3 py-2">Narrative</th>
-              <th className="w-14 px-3 py-2"><span className="sr-only">Actions</span></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((row, index) => (
-              <tr key={row.rowKey} className="bg-white">
-                {(['kpi', 'baseline', 'target', 'actual'] as const).map((key) => (
-                  <td key={key} className="px-3 py-2">
-                    <input
-                      value={row[key]}
-                      onChange={(event) => update(index, key, event.target.value)}
-                      className="w-full rounded border border-slate-200 px-2 py-2"
-                    />
-                  </td>
-                ))}
-                <td className="px-3 py-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max="5"
-                    value={row.score}
-                    onChange={(event) => update(index, 'score', event.target.value)}
-                    className="w-full rounded border border-slate-200 px-2 py-2"
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <input
-                    value={row.narrative}
-                    onChange={(event) => update(index, 'narrative', event.target.value)}
-                    className="w-full rounded border border-slate-200 px-2 py-2"
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <button
-                    type="button"
-                    aria-label={`Remove ${title} row ${index + 1}`}
-                    onClick={() => onChange(rows.filter((_, rowIndex) => rowIndex !== index))}
-                    disabled={rows.length === 1}
-                    className="rounded p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h4 className="text-sm font-semibold text-slate-900">{title}</h4>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Track baseline, target, actual performance, and scoring for each KPI.
+          </p>
+        </div>
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={() => onChange([...rows, emptyKpi(prefix, rows.length)])}
+          className="shrink-0"
         >
           <Plus /> Add KPI
         </Button>
+      </div>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+        <div className="overflow-x-auto">
+          <table className="min-w-[920px] text-sm">
+            <thead className="bg-slate-50/90 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            <tr>
+              <th className="w-28 px-4 py-3">KPI</th>
+              <th className="w-32 px-4 py-3">Baseline</th>
+              <th className="w-32 px-4 py-3">Target</th>
+              <th className="w-32 px-4 py-3">Actual</th>
+              <th className="w-24 px-4 py-3">Score (1–5)</th>
+              <th className="min-w-72 px-4 py-3">Narrative</th>
+              <th className="w-14 px-4 py-3">
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map((row, index) => (
+                <tr key={row.rowKey} className="bg-white align-top hover:bg-slate-50/50">
+                  {(['kpi', 'baseline', 'target', 'actual'] as const).map((key) => (
+                    <td key={key} className="px-4 py-3">
+                      <input
+                        value={row[key]}
+                        onChange={(event) => update(index, key, event.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-rw-blue focus:bg-white focus:ring-2 focus:ring-rw-blue/20"
+                      />
+                    </td>
+                  ))}
+                  <td className="px-4 py-3">
+                    <input
+                      type="number"
+                      min="1"
+                      max="5"
+                      value={row.score}
+                      onChange={(event) => update(index, 'score', event.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-rw-blue focus:bg-white focus:ring-2 focus:ring-rw-blue/20"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <input
+                      value={row.narrative}
+                      onChange={(event) => update(index, 'narrative', event.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-rw-blue focus:bg-white focus:ring-2 focus:ring-rw-blue/20"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      aria-label={`Remove ${title} row ${index + 1}`}
+                      onClick={() => onChange(rows.filter((_, rowIndex) => rowIndex !== index))}
+                      disabled={rows.length === 1}
+                      className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );
@@ -525,23 +537,27 @@ export function PerformanceContractForm({
           />
         </section>
 
-        <fieldset>
-          <legend className="text-sm font-semibold text-slate-900">
+        <fieldset className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
+          <legend className="px-1 text-sm font-semibold text-slate-900">
             4. Overall performance assessment
           </legend>
-          <div className="mt-3 flex flex-wrap gap-4">
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
             {[
               ['below_expectations', 'Below Expectations'],
               ['meets_expectations', 'Meets Expectations'],
               ['exceeds_expectations', 'Exceeds Expectations'],
             ].map(([value, label]) => (
-              <label key={value} className="flex items-center gap-2 text-sm text-slate-700">
+              <label
+                key={value}
+                className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-rw-blue/30 hover:bg-white"
+              >
                 <input
                   type="radio"
                   name="performance-rating"
                   value={value}
                   checked={overallPerformanceRating === value}
                   onChange={(event) => setOverallPerformanceRating(event.target.value)}
+                  className="h-4 w-4 border-slate-300 text-rw-blue focus:ring-rw-blue/30"
                 />
                 {label}
               </label>

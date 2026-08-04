@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { DocumentPreviewDialog } from './DocumentPreviewDialog';
+import { EmptyState } from './ui/empty-state';
+import { LoadingState } from './ui/loading-state';
+import { StatusBadge } from './ui/status-badge';
 import { documentsApi } from '../../utils/services';
 import { getToken } from '../../utils/api';
 import { formatRwf } from '../../utils/format';
@@ -150,7 +153,6 @@ export function CompanyDetailsModal({
                     ['Sector', company.sector],
                     ['Type', company.investmentType.replace(/_/g, ' ')],
                     ['Stage', company.stage],
-                    ['Status', company.status.replace(/_/g, ' ')],
                     ['Manager', company.projectManager],
                     ['Approval', company.approvalLevel === 'hod' ? 'HoD' : company.approvalLevel],
                     ['Province', company.province || '—'],
@@ -163,6 +165,14 @@ export function CompanyDetailsModal({
                       <p className="mt-0.5 text-sm font-medium capitalize text-slate-900">{value}</p>
                     </div>
                   ))}
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
+                      Status
+                    </p>
+                    <div className="mt-1">
+                      <StatusBadge status={company.status} kind="pipeline" />
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -170,9 +180,10 @@ export function CompanyDetailsModal({
             <TabsContent value="documents" className="space-y-3">
               <p className="text-xs text-slate-500">
                 Files from this company&apos;s Document Registry
-                {loadingDocs ? ' — loading…' : ` — ${documents.length} document(s)`}
+                {loadingDocs ? '' : ` — ${documents.length} document(s)`}
               </p>
-              {documents.map((doc) => (
+              {loadingDocs && <LoadingState compact label="Loading documents…" />}
+              {!loadingDocs && documents.map((doc) => (
                 <Card key={doc.id}>
                   <CardContent className="flex items-start gap-3 p-4">
                     <FileText className="mt-0.5 h-4 w-4 shrink-0 text-rw-blue" />
@@ -211,9 +222,11 @@ export function CompanyDetailsModal({
                 </Card>
               ))}
               {!loadingDocs && documents.length === 0 && (
-                <p className="py-8 text-center text-sm text-slate-500">
-                  No documents in the registry for this entity yet.
-                </p>
+                <EmptyState
+                  compact
+                  title="No documents yet"
+                  description="Upload files for this entity from the Document Registry."
+                />
               )}
             </TabsContent>
 
@@ -224,12 +237,12 @@ export function CompanyDetailsModal({
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">{company.nextActivity}</p>
                 <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
-                  <Calendar className="h-3.5 w-3.5" /> {company.nextActivityDate}
+                  <Calendar className="h-3.5 w-3.5" aria-hidden /> {company.nextActivityDate}
                 </div>
               </div>
               {company.approvedBy && (
-                <div className="rounded-lg border border-rw-green/20 bg-rw-green/5 p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-rw-green">
+                <div className="rounded-lg border border-rw-green/20 bg-rw-green-subtle p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-rw-green-dark">
                     Approved By
                   </p>
                   <p className="mt-1 text-sm font-medium text-slate-900">{company.approvedBy}</p>
@@ -237,12 +250,12 @@ export function CompanyDetailsModal({
               )}
               <div className="rounded-lg border border-slate-200 p-4">
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-rw-blue" />
-                  <p className="text-sm font-medium">Investment pipeline tracking active</p>
+                  <TrendingUp className="h-4 w-4 text-rw-blue" aria-hidden />
+                  <p className="text-sm font-medium">Portfolio tracking</p>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">
-                  Full audit trail and approval history will be available once the backend is
-                  connected.
+                  Submission workflow history for this entity is available under Submissions &amp;
+                  Approvals.
                 </p>
               </div>
             </TabsContent>

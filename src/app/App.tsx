@@ -13,8 +13,11 @@ import { UserAdminPanel } from './components/UserAdminPanel';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { Login } from './components/Login';
 import { AppShell } from './components/layout/AppShell';
-import { PageHeader } from './components/layout/PageHeader';
+import { PageHeader, Panel, PanelBody } from './components/layout/PageHeader';
+import { EmptyState } from './components/ui/empty-state';
+import { LoadingState } from './components/ui/loading-state';
 import { Toaster, toast } from 'sonner';
+import { Building2, Network, BarChart3 } from 'lucide-react';
 import { clearToken, getToken } from '../utils/api';
 import { authApi, companiesApi, dashboardApi, submissionsApi } from '../utils/services';
 import {
@@ -104,8 +107,8 @@ export default function App() {
 
   if (booting) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-sm text-slate-500">
-        Loading NIPMS…
+      <div className="flex min-h-screen items-center justify-center bg-[var(--color-page)]">
+        <LoadingState label="Loading NIPMS…" />
       </div>
     );
   }
@@ -160,68 +163,89 @@ export default function App() {
             title="Investment Portfolio"
             description="State-owned enterprise registry — search, filter, and inspect portfolio entities."
           />
-          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
-            <div className="flex-1">
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by entity, sector, or ministry..."
-                className="border-slate-200"
+          <Panel>
+            <PanelBody className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+              <div className="flex-1">
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by entity, sector, or ministry..."
+                  className="border-slate-200 focus-visible:border-rw-blue focus-visible:ring-rw-blue/20"
+                />
+              </div>
+              <div className="w-full sm:w-56">
+                <Select
+                  value={filterStatus}
+                  onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="review">Under Review</SelectItem>
+                    <SelectItem value="proposed">Proposed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </PanelBody>
+          </Panel>
+          {filteredPipeline.length === 0 ? (
+            <Panel>
+              <EmptyState
+                title="No investments match"
+                description="Try adjusting your search terms or status filter to find portfolio entities."
+                icon={<Building2 className="h-5 w-5" />}
               />
-            </div>
-            <div className="w-full sm:w-56">
-              <Select
-                value={filterStatus}
-                onValueChange={(v) => setFilterStatus(v as typeof filterStatus)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="review">Under Review</SelectItem>
-                  <SelectItem value="proposed">Proposed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
-            {filteredPipeline.map((item) => (
-              <PipelineCard
-                key={item.id}
-                item={item}
-                currentUserLevel={approvalLevelFor(user.role)}
-                onViewDetails={(company) => {
-                  setSelectedCompany(company);
-                  setIsModalOpen(true);
-                }}
-              />
-            ))}
-          </div>
-          {filteredPipeline.length === 0 && (
-            <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-slate-500">
-              No investments match your search and filters.
+            </Panel>
+          ) : (
+            <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
+              {filteredPipeline.map((item) => (
+                <PipelineCard
+                  key={item.id}
+                  item={item}
+                  currentUserLevel={approvalLevelFor(user.role)}
+                  onViewDetails={(company) => {
+                    setSelectedCompany(company);
+                    setIsModalOpen(true);
+                  }}
+                />
+              ))}
             </div>
           )}
         </div>
       )}
       {currentView === 'operations' && canViewLeadershipDashboards(user.role) && (
-        <div className="rounded-xl border border-slate-200 bg-white p-10">
+        <div className="space-y-6">
           <PageHeader
             badge="Operations"
             title="Operational Performance"
             description="Operational KPIs from approved quarterly reports will consolidate here by sector."
           />
+          <Panel>
+            <EmptyState
+              title="Coming soon"
+              description="Operational performance views will surface sector KPIs from approved quarterly submissions. No data is shown yet."
+              icon={<BarChart3 className="h-5 w-5" />}
+            />
+          </Panel>
         </div>
       )}
       {currentView === 'inter-ministerial' && canViewLeadershipDashboards(user.role) && (
-        <div className="rounded-xl border border-slate-200 bg-white p-10">
+        <div className="space-y-6">
           <PageHeader
             badge="Cross-Government"
             title="Inter-Ministerial Coordination"
             description="Partner ministry workflows will be managed here as line ministries connect to portfolio collaboration."
           />
+          <Panel>
+            <EmptyState
+              title="Coming soon"
+              description="Inter-ministerial coordination tools will appear here once partner ministries are connected. This view is a placeholder."
+              icon={<Network className="h-5 w-5" />}
+            />
+          </Panel>
         </div>
       )}
 

@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
-import { PageHeader, Panel, PanelBody } from './layout/PageHeader';
+import { StatusBadge } from './ui/status-badge';
+import { EmptyState } from './ui/empty-state';
+import { LoadingState } from './ui/loading-state';
+import { PageHeader, Panel, PanelBody, PanelHeader } from './layout/PageHeader';
 import { actionPointsApi } from '../../utils/services';
 import type { ActionPoint, ActionPointAssignee, AuthUser } from '../../types';
 import { toast } from 'sonner';
@@ -10,10 +13,14 @@ interface ActionPointsPanelProps {
   companies: Array<{ id: string; name: string; code: string }>;
 }
 
+const inputClass =
+  'w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20';
+
 export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPanelProps>) {
   const [items, setItems] = useState<ActionPoint[]>([]);
   const [assignees, setAssignees] = useState<ActionPointAssignee[]>([]);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const canRaise = ['portfolio_analyst', 'department_head', 'leadership'].includes(user.role);
 
   const [form, setForm] = useState({
@@ -36,7 +43,8 @@ export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPane
     void Promise.all([load(), actionPointsApi.assignees().then((res) => setAssignees(res.data))])
       .catch((error) => {
         toast.error(error instanceof Error ? error.message : 'Failed to load action points');
-      });
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -107,8 +115,8 @@ export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPane
 
       {canRaise && (
         <Panel>
+          <PanelHeader title="Raise an action point" />
           <PanelBody className="space-y-4">
-            <p className="text-sm font-semibold text-slate-900">Raise an action point</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-sm">
                 <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
@@ -117,7 +125,7 @@ export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPane
                 <select
                   value={form.companyId}
                   onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                  className={inputClass}
                 >
                   {companies.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -135,7 +143,7 @@ export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPane
                   onChange={(e) =>
                     setForm({ ...form, category: e.target.value as ActionPoint['category'] })
                   }
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                  className={inputClass}
                 >
                   <option value="financial">Financial</option>
                   <option value="operational">Operational</option>
@@ -150,7 +158,7 @@ export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPane
                 <input
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                  className={inputClass}
                 />
               </label>
               <label className="block text-sm sm:col-span-2">
@@ -161,7 +169,7 @@ export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPane
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={3}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                  className={inputClass}
                 />
               </label>
               <label className="block text-sm">
@@ -173,7 +181,7 @@ export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPane
                   onChange={(e) =>
                     setForm({ ...form, priority: e.target.value as ActionPoint['priority'] })
                   }
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                  className={inputClass}
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -189,7 +197,7 @@ export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPane
                   type="date"
                   value={form.dueDate}
                   onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                  className={inputClass}
                 />
               </label>
               <label className="block text-sm">
@@ -205,7 +213,7 @@ export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPane
                       assignedAnalystId: '',
                     })
                   }
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                  className={inputClass}
                 >
                   <option value="company">Company</option>
                   <option value="analyst">Portfolio analyst</option>
@@ -219,7 +227,7 @@ export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPane
                   <select
                     value={form.assignedAnalystId}
                     onChange={(e) => setForm({ ...form, assignedAnalystId: e.target.value })}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                    className={inputClass}
                   >
                     <option value="">Select analyst</option>
                     {assignees.map((assignee) => (
@@ -243,70 +251,87 @@ export function ActionPointsPanel({ user, companies }: Readonly<ActionPointsPane
         </Panel>
       )}
 
-      <div className="space-y-3">
-        {items.length === 0 && (
-          <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-            No action points yet.
-          </div>
-        )}
-        {items.map((item) => (
-          <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{item.title}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {item.companyName} · {item.category} · {item.priority} · raised by {item.raisedByName}
-                </p>
-                <p className="mt-1 text-xs font-medium text-rw-blue">
-                  {getAssignmentLabel(item)}
-                </p>
-              </div>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                {item.status.replace(/_/g, ' ')}
-              </span>
-            </div>
-            {item.description && <p className="mt-3 text-sm text-slate-700">{item.description}</p>}
-            {Boolean(user.companyId) && item.assignmentType === 'company' && (
-              <label className="mt-3 block max-w-sm text-sm">
-                <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                  Company person responsible
-                </span>
-                <select
-                  value={item.companyAssigneeId ?? ''}
-                  onChange={(e) => void assignCompanyPerson(item.id, e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                >
-                  <option value="">Select person</option>
-                  {assignees.map((assignee) => (
-                    <option key={assignee.id} value={assignee.id}>
-                      {assignee.fullName}
-                      {assignee.title ? ` — ${assignee.title}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {canHandle(item) && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {item.status !== 'in_progress' && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void setStatus(item.id, 'in_progress')}
-                  >
-                    Mark in progress
-                  </Button>
+      {loading ? (
+        <Panel>
+          <PanelBody>
+            <LoadingState label="Loading action points…" />
+          </PanelBody>
+        </Panel>
+      ) : items.length === 0 ? (
+        <Panel>
+          <EmptyState
+            title="No action points yet"
+            description="Raised follow-ups and company assignments will appear in this list."
+          />
+        </Panel>
+      ) : (
+        <div className="space-y-3">
+          {items.map((item) => (
+            <Panel key={item.id}>
+              <PanelBody className="space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {item.companyName} · {item.category} · {item.priority} · raised by{' '}
+                      {item.raisedByName}
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-rw-blue">
+                      {getAssignmentLabel(item)}
+                    </p>
+                  </div>
+                  <StatusBadge status={item.status} kind="generic" />
+                </div>
+                {item.description && (
+                  <p className="text-sm text-slate-700">{item.description}</p>
                 )}
-                {item.status !== 'resolved' && (
-                  <Button size="sm" onClick={() => void setStatus(item.id, 'resolved')}>
-                    Resolve
-                  </Button>
+                {Boolean(user.companyId) && item.assignmentType === 'company' && (
+                  <label className="block max-w-sm text-sm">
+                    <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      Company person responsible
+                    </span>
+                    <select
+                      value={item.companyAssigneeId ?? ''}
+                      onChange={(e) => void assignCompanyPerson(item.id, e.target.value)}
+                      className={inputClass}
+                    >
+                      <option value="">Select person</option>
+                      {assignees.map((assignee) => (
+                        <option key={assignee.id} value={assignee.id}>
+                          {assignee.fullName}
+                          {assignee.title ? ` — ${assignee.title}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 )}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+                {canHandle(item) && (
+                  <div className="flex flex-wrap gap-2">
+                    {item.status !== 'in_progress' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void setStatus(item.id, 'in_progress')}
+                      >
+                        Mark in progress
+                      </Button>
+                    )}
+                    {item.status !== 'resolved' && (
+                      <Button
+                        size="sm"
+                        variant="success"
+                        onClick={() => void setStatus(item.id, 'resolved')}
+                      >
+                        Resolve
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </PanelBody>
+            </Panel>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
