@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
 import {
-  CheckCircle2,
+  CheckCircle,
   Clock,
-  CornerUpLeft,
-  Download,
+  ArrowUUpLeft,
+  DownloadSimple,
   Eye,
   FileText,
-  MessageSquarePlus,
-  Pencil,
+  ChatCircle,
+  PencilSimple,
   Plus,
-  Send,
-  AlertCircle,
-} from 'lucide-react';
+  PaperPlaneTilt,
+  WarningCircle,
+} from '@phosphor-icons/react';
 import { Button } from './ui/button';
 import { StatusBadge } from './ui/status-badge';
 import { EmptyState } from './ui/empty-state';
@@ -229,7 +229,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
           label="Approved"
           value={String(submissions.filter((s) => s.status === 'approved').length)}
           accent="green"
-          icon={<CheckCircle2 className="h-5 w-5" />}
+          icon={<CheckCircle className="h-5 w-5" />}
         />
       </div>
 
@@ -237,7 +237,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
         <Panel className="lg:col-span-2">
           <PanelBody className="p-0">
             <div className="border-b border-slate-100 px-5 py-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Inbox</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tray</p>
             </div>
             <div className="max-h-[520px] divide-y divide-slate-100 overflow-y-auto">
               {submissions.length === 0 && (
@@ -307,7 +307,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                             setEditingActiveComment(true);
                           }}
                         >
-                          <Pencil className="h-3.5 w-3.5" /> Edit
+                          <PencilSimple className="h-3.5 w-3.5" /> Edit
                         </Button>
                       )}
                     </div>
@@ -391,7 +391,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                                     setEditingComment(event.comment ?? '');
                                   }}
                                 >
-                                  <Pencil className="h-3.5 w-3.5" /> Edit
+                                  <PencilSimple className="h-3.5 w-3.5" /> Edit
                                 </Button>
                               )}
                             </div>
@@ -458,7 +458,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                       disabled={busy || !feedbackDraft.trim()}
                       onClick={() => void addFeedbackNote()}
                     >
-                      <MessageSquarePlus className="h-4 w-4" /> Add feedback note
+                      <ChatCircle className="h-4 w-4" /> Add feedback note
                     </Button>
                   </div>
                 )}
@@ -537,7 +537,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                             size="sm"
                             onClick={() => void downloadAttachment(document)}
                           >
-                            <Download className="h-4 w-4" /> Download
+                            <DownloadSimple className="h-4 w-4" /> Download
                           </Button>
                         </div>
                       ))}
@@ -556,7 +556,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                         }, 'Submitted for company approval')
                       }
                     >
-                      <Send className="h-4 w-4" /> Submit
+                      <PaperPlaneTilt className="h-4 w-4" /> Submit
                     </Button>
                   )}
                   {canApproveSubmission(user.role, selected.status) && (
@@ -570,7 +570,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                         }, 'Submission approved')
                       }
                     >
-                      <CheckCircle2 className="h-4 w-4" /> Approve
+                      <CheckCircle className="h-4 w-4" /> Approve
                     </Button>
                   )}
                   {canReturnSubmission(user.role, selected.status) && (
@@ -593,7 +593,7 @@ export function SubmissionsPanel({ user, submissions, onRefresh }: SubmissionsPa
                           }, 'Returned for revision')
                         }
                       >
-                        <CornerUpLeft className="h-4 w-4" /> Return for revision
+                        <ArrowUUpLeft className="h-4 w-4" /> Return for revision
                       </Button>
                     </div>
                   )}
@@ -645,7 +645,7 @@ function WorkflowHint({
   return (
     <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
       {action ? (
-        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rw-blue" />
+        <WarningCircle className="mt-0.5 h-4 w-4 shrink-0 text-rw-blue" />
       ) : (
         <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
       )}

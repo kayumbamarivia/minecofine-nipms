@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, Eye, Trash2, Upload } from 'lucide-react';
+import { DownloadSimple, Eye, Trash, UploadSimple } from '@phosphor-icons/react';
 import { Button } from './ui/button';
 import { EmptyState } from './ui/empty-state';
 import { PageHeader, Panel, PanelBody, PanelHeader } from './layout/PageHeader';
@@ -204,7 +204,7 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
             </label>
           </div>
           <Button disabled={busy} className="gap-2" onClick={() => void upload()}>
-            <Upload className="h-4 w-4" /> Upload to company folder
+            <UploadSimple className="h-4 w-4" /> Upload to company folder
           </Button>
         </PanelBody>
       </Panel>
@@ -255,7 +255,7 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
                           className="gap-1"
                           onClick={() => void download(doc.id, doc.originalName)}
                         >
-                          <Download className="h-3.5 w-3.5" /> Download
+                          <DownloadSimple className="h-3.5 w-3.5" /> Download
                         </Button>
                         <Button
                           size="sm"
@@ -263,7 +263,7 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
                           className="gap-1 text-red-700"
                           onClick={() => void remove(doc.id)}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </td>

@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { StatusBadge } from './ui/status-badge';
-import { Clock, Building2 } from 'lucide-react';
+import { Clock, Buildings } from '@phosphor-icons/react';
 import type { PipelineItem } from '../../types';
 import { formatRwf } from '../../utils/format';
 
@@ -29,15 +29,15 @@ export function PipelineCard({ item, onViewDetails }: PipelineCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 shrink-0 text-rw-blue" />
+              <Buildings className="h-4 w-4 shrink-0 text-rw-blue" />
               <CardTitle className="truncate text-base">{item.companyName}</CardTitle>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-xs">
                 {item.sector}
               </Badge>
               <StatusBadge status={item.status} kind="pipeline" />
-              <Badge variant="secondary" className="text-[10px]">
+              <Badge variant="secondary" className="text-xs">
                 {investmentTypeLabels[item.investmentType]}
               </Badge>
             </div>

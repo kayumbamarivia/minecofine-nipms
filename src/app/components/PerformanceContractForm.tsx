@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Upload } from 'lucide-react';
+import { Plus, Trash, UploadSimple } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Panel, PanelBody, PanelHeader } from './layout/PageHeader';
@@ -143,7 +143,7 @@ function ObjectiveTable({
                     disabled={rows.length === 1}
                     className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash className="h-4 w-4" />
                   </button>
                 </td>
               </tr>
@@ -252,7 +252,7 @@ function KpiTable({
                       disabled={rows.length === 1}
                       className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash className="h-4 w-4" />
                     </button>
                   </td>
                 </tr>
@@ -457,7 +457,7 @@ export function PerformanceContractForm({
             as the performance-contract attachment when you save.
           </p>
           <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-medium text-rw-blue hover:bg-blue-50">
-            <Upload className="h-4 w-4" />
+            <UploadSimple className="h-4 w-4" />
             {importBusy ? 'Reading document…' : 'Import completed contract (.docx)'}
             <input
               type="file"

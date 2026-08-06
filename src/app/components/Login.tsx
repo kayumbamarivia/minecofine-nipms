@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Lock, Mail, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Lock, EnvelopeSimple, Eye, EyeSlash, ArrowLeft } from '@phosphor-icons/react';
 import type { AuthUser } from '../../types';
 import { RwandaFlag } from './brand/RwandaFlag';
 import { authApi } from '../../utils/services';
@@ -379,7 +379,7 @@ function EmailField({ value, onChange }: { value: string; onChange: (v: string) 
         Official Email Address
       </label>
       <div className="relative">
-        <Mail
+        <EnvelopeSimple
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
           aria-hidden
         />
@@ -443,7 +443,7 @@ function PasswordField({
           className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600"
           aria-label={show ? 'Hide password' : 'Show password'}
         >
-          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          {show ? <EyeSlash className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
     </div>

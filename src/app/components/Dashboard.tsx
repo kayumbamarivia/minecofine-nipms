@@ -1,4 +1,4 @@
-import { Briefcase, TrendingUp, Award, GitBranch } from 'lucide-react';
+import { Briefcase, TrendUp, Medal, TreeStructure } from '@phosphor-icons/react';
 import {
   BarChart,
   Bar,
@@ -58,14 +58,14 @@ export function Dashboard({ user, summary }: DashboardProps) {
           label="Active SOEs"
           value={String(summary.activeCompanies)}
           change={`${summary.totalCompanies} in registry`}
-          icon={<Briefcase className="h-5 w-5" />}
+          icon={<Briefcase className="h-5 w-5" weight="regular" />}
           accent="blue"
         />
         <StatCard
           label="Portfolio Value"
           value={formatRwf(summary.portfolioValue, true)}
           change="Government equity exposure"
-          icon={<TrendingUp className="h-5 w-5" />}
+          icon={<TrendUp className="h-5 w-5" weight="regular" />}
           accent="green"
         />
         <StatCard
@@ -73,14 +73,14 @@ export function Dashboard({ user, summary }: DashboardProps) {
           value={String(summary.pendingSubmissions)}
           change="Awaiting review or approval"
           changeType="neutral"
-          icon={<GitBranch className="h-5 w-5" />}
+          icon={<TreeStructure className="h-5 w-5" weight="regular" />}
           accent="yellow"
         />
         <StatCard
           label="Approved Reports"
           value={String(summary.approvedThisQuarter)}
           change="Completed in current cycle"
-          icon={<Award className="h-5 w-5" />}
+          icon={<Medal className="h-5 w-5" weight="regular" />}
           accent="blue"
         />
       </div>

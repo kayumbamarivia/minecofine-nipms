@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download } from 'lucide-react';
+import { DownloadSimple } from '@phosphor-icons/react';
 import { Button } from './ui/button';
 import { EmptyState } from './ui/empty-state';
 import { PageHeader, Panel, PanelBody, PanelHeader } from './layout/PageHeader';
@@ -76,7 +76,7 @@ export function ReportsCentre({ user, companies }: ReportsCentreProps) {
                 void downloadCsv(reportsApi.portfolioCsvUrl(), 'portfolio-summary.csv')
               }
             >
-              <Download className="h-4 w-4" /> Export portfolio CSV
+              <DownloadSimple className="h-4 w-4" /> Export portfolio CSV
             </Button>
           ) : undefined
         }
@@ -99,7 +99,7 @@ export function ReportsCentre({ user, companies }: ReportsCentreProps) {
                 )
               }
             >
-              <Download className="h-3.5 w-3.5" /> CSV
+              <DownloadSimple className="h-3.5 w-3.5" /> CSV
             </Button>
           }
         />

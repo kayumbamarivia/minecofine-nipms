@@ -11,13 +11,14 @@ import { DocumentRegistry } from './components/DocumentRegistry';
 import { ReportsCentre } from './components/ReportsCentre';
 import { UserAdminPanel } from './components/UserAdminPanel';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
+import { SettingsPanel } from './components/SettingsPanel';
 import { Login } from './components/Login';
 import { AppShell } from './components/layout/AppShell';
 import { PageHeader, Panel, PanelBody } from './components/layout/PageHeader';
 import { EmptyState } from './components/ui/empty-state';
 import { LoadingState } from './components/ui/loading-state';
 import { Toaster, toast } from 'sonner';
-import { Building2, Network, BarChart3 } from 'lucide-react';
+import { Buildings, ChartBar, ShareNetwork } from '@phosphor-icons/react';
 import { clearToken, getToken } from '../utils/api';
 import { authApi, companiesApi, dashboardApi, submissionsApi } from '../utils/services';
 import {
@@ -135,7 +136,6 @@ export default function App() {
       onNavigate={setCurrentView}
       user={user}
       onLogout={handleLogout}
-      onChangePassword={() => setShowChangePassword(true)}
     >
       {currentView === 'dashboard' && <Dashboard summary={summary} user={user} />}
       {currentView === 'processes' && (
@@ -155,6 +155,9 @@ export default function App() {
       )}
       {currentView === 'users' && isMinistryRole(user.role) && (
         <UserAdminPanel user={user} companies={companyOptions} />
+      )}
+      {currentView === 'settings' && (
+        <SettingsPanel user={user} onChangePassword={() => setShowChangePassword(true)} />
       )}
       {currentView === 'portfolio' && (
         <div className="space-y-6">
@@ -196,7 +199,7 @@ export default function App() {
               <EmptyState
                 title="No investments match"
                 description="Try adjusting your search terms or status filter to find portfolio entities."
-                icon={<Building2 className="h-5 w-5" />}
+                icon={<Buildings className="h-5 w-5" weight="regular" />}
               />
             </Panel>
           ) : (
@@ -227,7 +230,7 @@ export default function App() {
             <EmptyState
               title="Coming soon"
               description="Operational performance views will surface sector KPIs from approved quarterly submissions. No data is shown yet."
-              icon={<BarChart3 className="h-5 w-5" />}
+              icon={<ChartBar className="h-5 w-5" weight="regular" />}
             />
           </Panel>
         </div>
@@ -243,7 +246,7 @@ export default function App() {
             <EmptyState
               title="Coming soon"
               description="Inter-ministerial coordination tools will appear here once partner ministries are connected. This view is a placeholder."
-              icon={<Network className="h-5 w-5" />}
+              icon={<ShareNetwork className="h-5 w-5" weight="regular" />}
             />
           </Panel>
         </div>

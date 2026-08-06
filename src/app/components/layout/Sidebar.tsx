@@ -1,9 +1,8 @@
-import { type ReactNode } from 'react';
-import { LogOut, X } from 'lucide-react';
+import { SignOut, X } from '@phosphor-icons/react';
 import { Button } from '../ui/button';
 import type { AppView, AuthUser } from '../../../types';
 import { RwandaFlag } from '../brand/RwandaFlag';
-import { leadershipNav, mainNav, visibleNav, type NavItem } from './nav';
+import { leadershipNav, mainNav, settingsNav, visibleNav, type NavItem } from './nav';
 import { cn } from '../ui/utils';
 
 interface SidebarProps {
@@ -30,6 +29,7 @@ function NavContent({
 }) {
   const main = visibleNav(mainNav, user);
   const leadership = visibleNav(leadershipNav, user);
+  const settings = visibleNav(settingsNav, user);
 
   const handleNavigate = (view: AppView) => {
     onNavigate(view);
@@ -48,7 +48,7 @@ function NavContent({
         aria-current={isActive ? 'page' : undefined}
         className={cn('sidebar-nav-link', isActive && 'active')}
       >
-        <Icon className="nav-icon" strokeWidth={1.6} aria-hidden />
+        <Icon className="nav-icon" weight="regular" aria-hidden />
         <span className="min-w-0 flex-1 leading-snug">{item.label}</span>
       </button>
     );
@@ -61,7 +61,7 @@ function NavContent({
           <div className="flex min-w-0 items-center gap-3">
             <RwandaFlag size="sm" />
             <div className="min-w-0 self-center">
-              <p className="truncate leading-none text-[1.35rem] font-semibold tracking-tight text-white [font-family:var(--font-display)]">
+              <p className="truncate leading-none text-[1.4rem] font-semibold tracking-tight text-white [font-family:var(--font-display)]">
                 NIPMS
               </p>
             </div>
@@ -73,7 +73,7 @@ function NavContent({
               className="rounded-lg p-1.5 text-white/80 hover:bg-white/10 lg:hidden"
               aria-label="Close navigation"
             >
-              <X className="h-5 w-5" />
+              <X className="h-5 w-5" weight="bold" />
             </button>
           )}
         </div>
@@ -94,6 +94,13 @@ function NavContent({
             {leadership.map(renderNavItem)}
           </>
         )}
+
+        {settings.length > 0 && (
+          <>
+            <div className="my-3 ml-4 mr-6 border-t border-white/10" />
+            {settings.map(renderNavItem)}
+          </>
+        )}
       </nav>
 
       <div className="shrink-0 border-t border-white/10 p-4">
@@ -105,7 +112,7 @@ function NavContent({
             onClick={onLogout}
             className="w-full justify-center gap-1.5 border-0 bg-white text-rw-blue-dark hover:bg-white/90"
           >
-            <LogOut className="h-3.5 w-3.5" />
+            <SignOut className="h-4 w-4" weight="regular" />
             <span>Sign Out</span>
           </Button>
         </div>

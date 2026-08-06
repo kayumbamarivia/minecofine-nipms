@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react';
 import {
   Check,
-  ChevronLeft,
-  ChevronRight,
+  CaretLeft,
+  CaretRight,
   Circle,
-  AlertTriangle,
-  CheckCircle2,
+  Warning,
+  CheckCircle,
   Plus,
-  Trash2,
+  Trash,
   XCircle,
-} from 'lucide-react';
+} from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Panel, PanelBody, PanelHeader } from './layout/PageHeader';
@@ -191,7 +191,7 @@ function TrialBalanceTable({
                 </td>
                 <td className="px-1 py-1">
                   <button type="button" aria-label="Remove trial balance row" onClick={() => onChange(rows.filter((item) => item.id !== row.id))} className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">
-                    <Trash2 className="h-4 w-4" />
+                    <Trash className="h-4 w-4" />
                   </button>
                 </td>
               </tr>
@@ -1172,7 +1172,7 @@ export function QuarterlyReportForm({
             </p>
             {!bsBalanced && (
               <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <Warning className="mt-0.5 h-4 w-4 shrink-0" />
                 Balance sheet is out of balance for the current quarter. Adjust lines until Total
                 Assets equals Total Equity and Liabilities.
               </div>
@@ -1395,7 +1395,7 @@ export function QuarterlyReportForm({
                     }`}
                   >
                     {item.ok ? (
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                      <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
                     ) : (
                       <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
                     )}
@@ -1540,14 +1540,14 @@ export function QuarterlyReportForm({
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
           <Button type="button" variant="outline" disabled={step === 0 || busy} onClick={goBack}>
-            <ChevronLeft className="mr-1 h-4 w-4" />
+            <CaretLeft className="mr-1 h-4 w-4" />
             Previous section
           </Button>
           <div className="flex flex-wrap gap-2">
             {step < SECTIONS.length - 1 ? (
               <Button type="button" disabled={busy} onClick={goNext}>
                 Next section
-                <ChevronRight className="ml-1 h-4 w-4" />
+                <CaretRight className="ml-1 h-4 w-4" />
               </Button>
             ) : (
               <Button type="button" disabled={busy || !companyId} onClick={() => void saveDraft()}>

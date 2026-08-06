@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Building2, Calendar, Download, Eye, FileText, TrendingUp } from 'lucide-react';
+import { Buildings, CalendarBlank, DownloadSimple, Eye, FileText, TrendUp } from '@phosphor-icons/react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -106,7 +106,7 @@ export function CompanyDetailsModal({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rw-blue/10">
-                <Building2 className="h-5 w-5 text-rw-blue" />
+                <Buildings className="h-5 w-5 text-rw-blue" />
               </div>
               <div>
                 <p className="text-base">{company.companyName}</p>
@@ -215,7 +215,7 @@ export function CompanyDetailsModal({
                         className="gap-1"
                         onClick={() => void download(doc)}
                       >
-                        <Download className="h-3.5 w-3.5" /> Download
+                        <DownloadSimple className="h-3.5 w-3.5" /> Download
                       </Button>
                     </div>
                   </CardContent>
@@ -237,7 +237,7 @@ export function CompanyDetailsModal({
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900">{company.nextActivity}</p>
                 <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
-                  <Calendar className="h-3.5 w-3.5" aria-hidden /> {company.nextActivityDate}
+                  <CalendarBlank className="h-3.5 w-3.5" aria-hidden /> {company.nextActivityDate}
                 </div>
               </div>
               {company.approvedBy && (
@@ -250,7 +250,7 @@ export function CompanyDetailsModal({
               )}
               <div className="rounded-lg border border-slate-200 p-4">
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-rw-blue" aria-hidden />
+                  <TrendUp className="h-4 w-4 text-rw-blue" aria-hidden />
                   <p className="text-sm font-medium">Portfolio tracking</p>
                 </div>
                 <p className="mt-1 text-xs text-slate-500">

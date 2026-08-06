@@ -8,7 +8,6 @@ interface AppShellProps {
   onNavigate: (view: AppView) => void;
   user: AuthUser;
   onLogout: () => void;
-  onChangePassword?: () => void;
   children: ReactNode;
 }
 
@@ -17,7 +16,6 @@ export function AppShell({
   onNavigate,
   user,
   onLogout,
-  onChangePassword,
   children,
 }: AppShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -62,7 +60,7 @@ export function AppShell({
           {children}
         </main>
         <footer className="border-t border-slate-200 bg-white px-4 py-3 sm:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-2 text-xs text-slate-500 sm:flex-row">
+          <div className="mx-auto flex max-w-[1400px] flex-col items-center justify-between gap-2 text-sm text-slate-500 sm:flex-row">
             <p>© 2026 Republic of Rwanda — Ministry of Finance and Economic Planning</p>
             <p className="flex items-center gap-2">
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-rw-green" aria-hidden />

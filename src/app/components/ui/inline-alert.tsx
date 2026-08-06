@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { AlertCircle, CheckCircle2, Info, AlertTriangle } from 'lucide-react';
+import { WarningCircle, CheckCircle, Info, Warning } from '@phosphor-icons/react';
 import { cn } from './utils';
 
 type AlertVariant = 'info' | 'success' | 'warning' | 'danger';
@@ -20,9 +20,9 @@ const styles: Record<AlertVariant, string> = {
 
 const icons: Record<AlertVariant, typeof Info> = {
   info: Info,
-  success: CheckCircle2,
-  warning: AlertTriangle,
-  danger: AlertCircle,
+  success: CheckCircle,
+  warning: Warning,
+  danger: WarningCircle,
 };
 
 export function InlineAlert({

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, FileSpreadsheet, Upload } from 'lucide-react';
+import { DownloadSimple, FileXls, UploadSimple } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { getToken } from '../../utils/api';
@@ -83,7 +83,7 @@ export function FinancialPackImportPanel({
     <section className="rounded-xl border border-rw-blue/20 bg-rw-blue-subtle/60 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-2">
-          <FileSpreadsheet className="mt-0.5 h-4 w-4 shrink-0 text-rw-blue" />
+          <FileXls className="mt-0.5 h-4 w-4 shrink-0 text-rw-blue" />
           <div>
             <p className="text-sm font-semibold text-slate-900">
               Auto-fill from the official Excel template
@@ -103,12 +103,12 @@ export function FinancialPackImportPanel({
             disabled={downloading}
             onClick={() => void downloadTemplate()}
           >
-            <Download className="mr-1 h-4 w-4" />
+            <DownloadSimple className="mr-1 h-4 w-4" />
             {downloading ? 'Preparing…' : 'Download template'}
           </Button>
           <label className="inline-flex cursor-pointer items-center">
             <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
-              <Upload className="h-4 w-4" />
+              <UploadSimple className="h-4 w-4" />
               {importing ? 'Reading workbook…' : 'Upload filled workbook'}
             </span>
             <input

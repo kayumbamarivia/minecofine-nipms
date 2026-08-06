@@ -1,4 +1,4 @@
-import { FileText, Upload, X } from 'lucide-react';
+import { FileText, UploadSimple, X } from '@phosphor-icons/react';
 
 export function SupportingFileField({
   label,
@@ -37,7 +37,7 @@ export function SupportingFileField({
         </div>
       ) : (
         <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:border-rw-blue hover:bg-white hover:text-rw-blue">
-          <Upload className="h-4 w-4" /> Choose file
+          <UploadSimple className="h-4 w-4" /> Choose file
           <input
             type="file"
             accept={accept}

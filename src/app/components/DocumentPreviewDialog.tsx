@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileWarning } from 'lucide-react';
+import { Warning } from '@phosphor-icons/react';
 import {
   Dialog,
   DialogContent,
@@ -92,7 +92,7 @@ export function DocumentPreviewDialog({
           )}
           {!loading && error && (
             <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-              <FileWarning className="h-8 w-8 text-amber-600" />
+              <Warning className="h-8 w-8 text-amber-600" />
               <p className="max-w-lg text-sm text-slate-700">{error}</p>
               <p className="text-xs text-slate-500">The original file can still be downloaded.</p>
             </div>

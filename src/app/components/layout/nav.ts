@@ -1,16 +1,17 @@
 import {
-  LayoutDashboard,
+  SquaresFour,
   Briefcase,
   CheckSquare,
-  FileText,
-  ClipboardEdit,
-  Activity,
-  Building2,
-  GitBranch,
-  LineChart,
-  Users,
-  type LucideIcon,
-} from 'lucide-react';
+  Files,
+  NotePencil,
+  Pulse,
+  Buildings,
+  TreeStructure,
+  ChartLineUp,
+  UsersThree,
+  GearSix,
+  type Icon,
+} from '@phosphor-icons/react';
 import type { AppView, AuthUser } from '../../../types';
 import {
   canCreateSubmission,
@@ -23,51 +24,55 @@ export interface NavItem {
   key: AppView;
   label: string;
   shortLabel?: string;
-  icon: LucideIcon;
+  icon: Icon;
   show?: (user: AuthUser) => boolean;
 }
 
 export const mainNav: NavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { key: 'dashboard', label: 'Dashboard', icon: SquaresFour },
   { key: 'portfolio', label: 'Investment Portfolio', shortLabel: 'Portfolio', icon: Briefcase },
-  { key: 'submissions', label: 'Submissions & Approvals', shortLabel: 'Submissions', icon: GitBranch },
+  { key: 'submissions', label: 'Submissions & Approvals', shortLabel: 'Submissions', icon: TreeStructure },
   {
     key: 'processes',
     label: 'Submission Workspace',
     shortLabel: 'Workspace',
-    icon: ClipboardEdit,
+    icon: NotePencil,
     show: (u) => canCreateSubmission(u.role),
   },
   { key: 'action-points', label: 'Action Points', icon: CheckSquare },
-  { key: 'documents', label: 'Document Registry', shortLabel: 'Documents', icon: FileText },
+  { key: 'documents', label: 'Document Registry', shortLabel: 'Documents', icon: Files },
   {
     key: 'reports',
     label: 'Reports & Extracts',
     shortLabel: 'Reports',
-    icon: LineChart,
+    icon: ChartLineUp,
     show: (u) => canViewLeadershipDashboards(u.role) || isCompanyRole(u.role),
   },
   {
     key: 'users',
     label: 'User Administration',
     shortLabel: 'Users',
-    icon: Users,
+    icon: UsersThree,
     show: (u) => isMinistryRole(u.role),
   },
+];
+
+export const settingsNav: NavItem[] = [
+  { key: 'settings', label: 'Settings', icon: GearSix },
 ];
 
 export const leadershipNav: NavItem[] = [
   {
     key: 'operations',
     label: 'Operations',
-    icon: Activity,
+    icon: Pulse,
     show: (u) => canViewLeadershipDashboards(u.role),
   },
   {
     key: 'inter-ministerial',
     label: 'Inter-Ministerial Hub',
     shortLabel: 'Coordination',
-    icon: Building2,
+    icon: Buildings,
     show: (u) => canViewLeadershipDashboards(u.role),
   },
 ];
@@ -81,6 +86,7 @@ export const VIEW_TITLES: Record<AppView, string> = {
   documents: 'Document Registry',
   reports: 'Reports & Extracts',
   users: 'User Administration',
+  settings: 'Settings',
   operations: 'Operational Performance',
   'inter-ministerial': 'Inter-Ministerial Coordination',
 };

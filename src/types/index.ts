@@ -151,6 +151,7 @@ export type AppView =
   | 'documents'
   | 'reports'
   | 'users'
+  | 'settings'
   | 'operations'
   | 'inter-ministerial';
 

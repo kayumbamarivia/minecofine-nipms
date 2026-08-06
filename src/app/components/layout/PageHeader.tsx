@@ -14,15 +14,15 @@ export function PageHeader({ title, description, badge, actions, meta }: PageHea
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         {badge && (
-          <span className="mb-2 inline-flex items-center rounded-md bg-rw-blue-subtle px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-rw-blue">
+          <span className="mb-2 inline-flex items-center rounded-md bg-rw-blue-subtle px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-rw-blue">
             {badge}
           </span>
         )}
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 [font-family:var(--font-display)] sm:text-[1.75rem]">
+        <h1 className="text-[1.75rem] font-semibold tracking-tight text-slate-900 [font-family:var(--font-display)] sm:text-[1.875rem]">
           {title}
         </h1>
         {description && (
-          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-slate-600">{description}</p>
+          <p className="mt-1.5 max-w-2xl text-base leading-relaxed text-slate-600">{description}</p>
         )}
         {meta && <div className="mt-2">{meta}</div>}
       </div>
@@ -67,10 +67,10 @@ export function StatCard({
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">{label}</p>
-          <p className="mt-2 truncate text-2xl font-bold tracking-tight text-slate-900">{value}</p>
+          <p className="text-sm font-medium uppercase tracking-wider text-slate-500">{label}</p>
+          <p className="mt-2 truncate text-[1.75rem] font-bold tracking-tight text-slate-900">{value}</p>
           {change && (
-            <p className={cn('mt-1.5 text-xs font-medium', changeStyles[changeType])}>{change}</p>
+            <p className={cn('mt-1.5 text-sm font-medium', changeStyles[changeType])}>{change}</p>
           )}
         </div>
         {icon && (
@@ -109,8 +109,8 @@ export function PanelHeader({
   return (
     <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
-        <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-        {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
+        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+        {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
       </div>
       {actions}
     </div>
