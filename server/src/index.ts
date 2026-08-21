@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
@@ -14,12 +16,24 @@ import reportRoutes from './routes/reports.js';
 import importRoutes from './routes/imports.js';
 import userRoutes from './routes/users.js';
 import { getStorageStatus } from './storage/objectStore.js';
+import { isMailConfigured } from './utils/mail.js';
 
 async function start() {
   await connectDatabase();
 
   const app = express();
-  app.use(cors({ origin: config.corsOrigins, credentials: true }));
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        if (!origin || config.corsOrigins.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(null, false);
+      },
+      credentials: true,
+    }),
+  );
   app.use(express.json({ limit: '2mb' }));
 
   app.get('/api/health', (_req, res) => {
@@ -28,7 +42,9 @@ async function start() {
       service: 'nipms-api',
       version: '0.1.0',
       environment: config.nodeEnv,
+      appUrl: config.appUrl,
       storage: getStorageStatus(),
+      mail: { mode: isMailConfigured() ? 'smtp' : 'console' },
     });
   });
 
@@ -65,8 +81,22 @@ async function start() {
     },
   );
 
+  // Production: one Render service serves the Vite build and the API together,
+  // so the frontend's relative `/api` calls keep working.
+  if (config.nodeEnv === 'production') {
+    const distPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) return next();
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+
   app.listen(config.port, () => {
     console.log(`NIPMS API listening on http://localhost:${config.port}`);
+    console.log(
+      `Env=${config.nodeEnv} storage=gridfs mail=${isMailConfigured() ? 'smtp' : 'console'} appUrl=${config.appUrl}`,
+    );
   });
 }
 

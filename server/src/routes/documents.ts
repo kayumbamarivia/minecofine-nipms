@@ -11,9 +11,7 @@ import {
   putObject,
   getObjectStream,
   deleteObject,
-  resolveLegacyDriver,
 } from '../storage/objectStore.js';
-import { config } from '../config.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -56,7 +54,7 @@ function toDto(
     originalName: doc.originalName,
     mimeType: doc.mimeType,
     sizeBytes: doc.sizeBytes,
-    storageDriver: doc.storageDriver || 'local',
+    storageDriver: 'gridfs',
     notes: doc.notes || null,
     uploadedBy: doc.uploadedBy.toString(),
     uploadedByName,
@@ -137,7 +135,7 @@ router.get('/', async (req: AuthRequest, res) => {
         userMap.get(row.uploadedBy.toString()) ?? '',
       ),
     ),
-    storage: { driver: config.storageDriver },
+    storage: { driver: 'gridfs' },
   });
 });
 
@@ -181,7 +179,7 @@ router.post('/', upload.single('file'), async (req: AuthRequest, res) => {
       mimeType: file.mimetype,
       sizeBytes: stored.sizeBytes,
       storagePath: stored.key,
-      storageDriver: stored.driver,
+      storageDriver: 'gridfs',
       uploadedBy: user.id,
       notes: notes ?? '',
     });
@@ -207,8 +205,7 @@ router.get('/:id/download', async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const driver = resolveLegacyDriver(doc.storagePath, doc.storageDriver);
-    const { stream, contentType } = await getObjectStream(doc.storagePath, driver);
+    const { stream, contentType } = await getObjectStream(doc.storagePath);
 
     res.setHeader(
       'Content-Disposition',
@@ -233,8 +230,7 @@ router.get('/:id/preview', async (req: AuthRequest, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const driver = resolveLegacyDriver(doc.storagePath, doc.storageDriver);
-    const { stream, contentType } = await getObjectStream(doc.storagePath, driver);
+    const { stream, contentType } = await getObjectStream(doc.storagePath);
     const buffer = await streamToBuffer(stream);
     const mimeType = contentType || doc.mimeType || 'application/octet-stream';
     const filename = doc.originalName.toLowerCase();
@@ -304,9 +300,8 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     return res.status(403).json({ error: 'Insufficient permissions to delete this document' });
   }
 
-  const driver = resolveLegacyDriver(doc.storagePath, doc.storageDriver);
   try {
-    await deleteObject(doc.storagePath, driver);
+    await deleteObject(doc.storagePath);
   } catch (error) {
     console.warn('Storage delete warning:', error);
   }

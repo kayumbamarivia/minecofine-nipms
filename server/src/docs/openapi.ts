@@ -67,7 +67,7 @@ export const openApiSpec = {
     { name: 'Submissions', description: 'Business process packages and the approval workflow' },
     { name: 'Dashboard', description: 'Aggregated portfolio metrics' },
     { name: 'Action Points', description: 'Ministry follow-ups raised against companies' },
-    { name: 'Documents', description: 'Company document folders (local disk or MinIO/S3)' },
+    { name: 'Documents', description: 'Company document folders (GridFS in MongoDB, or local disk / S3)' },
     { name: 'Reports', description: 'Ad hoc reporting and CSV extracts' },
     { name: 'Imports', description: 'Excel/CSV financial statement import' },
   ],
@@ -257,7 +257,7 @@ export const openApiSpec = {
           originalName: { type: 'string' },
           mimeType: { type: 'string' },
           sizeBytes: { type: 'number' },
-          storageDriver: { type: 'string', enum: ['local', 's3'] },
+          storageDriver: { type: 'string', enum: ['gridfs'] },
           notes: { type: 'string', nullable: true },
           uploadedBy: { type: 'string' },
           uploadedByName: { type: 'string' },
@@ -324,9 +324,8 @@ export const openApiSpec = {
                     storage: {
                       type: 'object',
                       properties: {
-                        driver: { type: 'string', enum: ['local', 's3'] },
+                        driver: { type: 'string', enum: ['gridfs'] },
                         bucket: { type: 'string', nullable: true },
-                        endpoint: { type: 'string', nullable: true },
                       },
                     },
                   },
@@ -957,7 +956,7 @@ export const openApiSpec = {
       post: {
         tags: ['Documents'],
         summary: 'Upload a document into a company folder',
-        description: 'Multipart form. Allowed: PDF, Office, CSV, text, images. Max 25 MB. Stored on local disk or MinIO/S3 depending on STORAGE_DRIVER.',
+        description: 'Multipart form. Allowed: PDF, Office, CSV, text, images. Max 25 MB. Stored in MongoDB GridFS by default (shared across local and Render when using Atlas).',
         security: bearerAuth,
         requestBody: {
           required: true,

@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Lock, EnvelopeSimple, Eye, EyeSlash, ArrowLeft } from '@phosphor-icons/react';
 import type { AuthUser } from '../../types';
-import { RwandaFlag } from './brand/RwandaFlag';
 import { authApi } from '../../utils/services';
 import { ApiError, setToken } from '../../utils/api';
 import { InlineAlert } from './ui/inline-alert';
-import { Button } from './ui/button';
 
 interface LoginProps {
   onLogin: (user: AuthUser) => void;
@@ -51,6 +49,43 @@ export function Login({ onLogin }: LoginProps) {
       void runVerify(initial.token);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Lock the whole document while the login screen is shown — no scrolling
+    // in any direction, no matter how the content lays out, ever.
+    const { html, body } = { html: document.documentElement, body: document.body };
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    const prevHtmlHeight = html.style.height;
+    const prevBodyHeight = body.style.height;
+    const prevHtmlOverscroll = html.style.overscrollBehavior;
+    const prevBodyOverscroll = body.style.overscrollBehavior;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    html.style.height = '100%';
+    body.style.height = '100%';
+    html.style.overscrollBehavior = 'none';
+    body.style.overscrollBehavior = 'none';
+
+    // Belt-and-suspenders: some browsers can still pan the visual viewport on
+    // wheel/touch input (e.g. when zoomed) even with overflow:hidden set.
+    // Actively cancel any scroll-driving input while this screen is mounted
+    // so the page truly cannot be nudged in any direction.
+    const cancelScroll = (event: Event) => event.preventDefault();
+    window.addEventListener('wheel', cancelScroll, { passive: false });
+    window.addEventListener('touchmove', cancelScroll, { passive: false });
+
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      html.style.height = prevHtmlHeight;
+      body.style.height = prevBodyHeight;
+      html.style.overscrollBehavior = prevHtmlOverscroll;
+      body.style.overscrollBehavior = prevBodyOverscroll;
+      window.removeEventListener('wheel', cancelScroll);
+      window.removeEventListener('touchmove', cancelScroll);
+    };
   }, []);
 
   const goLogin = () => {
@@ -153,143 +188,161 @@ export function Login({ onLogin }: LoginProps) {
     }
   };
 
-  const titles: Record<AuthScreen, { title: string; subtitle: string }> = {
-    login: {
-      title: 'Sign in to NIPMS',
-      subtitle: 'Authorised access for company officers and MINECOFIN staff',
-    },
-    forgot: {
-      title: 'Reset password',
-      subtitle: 'We will send a secure link to your official email',
-    },
-    reset: {
-      title: 'Choose a new password',
-      subtitle: PASSWORD_HINT,
-    },
-    verify: {
-      title: 'Verifying email…',
-      subtitle: 'Please wait while we confirm your address',
-    },
-    resend: {
-      title: 'Verify your email',
-      subtitle: 'Accounts must confirm their address before first sign-in',
-    },
+  const titles: Record<AuthScreen, { title: string; subtitle?: string }> = {
+    login: { title: 'Login' },
+    forgot: { title: 'Reset password', subtitle: 'We will email you a secure link' },
+    reset: { title: 'New password', subtitle: PASSWORD_HINT },
+    verify: { title: 'Verifying…', subtitle: 'Confirming your email address' },
+    resend: { title: 'Verify email', subtitle: 'Confirm your address to continue' },
   };
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="relative hidden w-[44%] shrink-0 flex-col justify-between overflow-hidden bg-rw-blue-dark lg:flex">
-        <div className="pointer-events-none absolute inset-0" aria-hidden>
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rw-blue via-rw-yellow to-rw-green" />
-          <div className="absolute -right-20 top-24 h-72 w-72 rounded-full bg-rw-blue-light/20 blur-3xl" />
-          <div className="absolute -bottom-24 -left-16 h-80 w-80 rounded-full bg-rw-green/10 blur-3xl" />
-        </div>
+    <div className="login-stage fixed inset-0 flex items-center justify-center overflow-hidden p-4 sm:p-6">
+      {/* Professional financial-district backdrop — pinned to the viewport, never scrolls or drifts */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+        <img
+          src="/business-skyline2.jpg"
+          alt=""
+          className="login-stage-bg absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#020a1c]/60 via-[#04122a]/55 to-[#020617]/78" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1a56c4]/18 via-transparent to-[#00a651]/12" />
+        <div className="login-glow login-glow--blue absolute -left-24 top-0 h-96 w-96 rounded-full bg-[#3b82c4]/30 blur-3xl" />
+        <div className="login-glow login-glow--gold absolute right-0 top-1/3 h-80 w-80 rounded-full bg-[#fad201]/15 blur-3xl" />
+        <div className="login-glow login-glow--green absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-[#34a86a]/18 blur-3xl" />
+      </div>
 
-        <div className="relative z-10 p-10">
-          <div className="flex items-center gap-4">
-            <RwandaFlag size="md" className="rounded-lg" />
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-200/80">
-                Republic of Rwanda
-              </p>
-              <p className="text-xl font-bold text-white">NIPMS</p>
-            </div>
-          </div>
-        </div>
+      {/* Outer soft shell */}
+      <div className="login-card relative z-10 w-full max-w-[min(980px,calc(100vw-2.5rem))] rounded-[2rem] border border-white/50 bg-white/95 p-3 shadow-[0_30px_80px_rgba(15,40,80,0.28)] sm:max-w-[min(980px,calc(100vw-4rem))] sm:p-4">
+        <div className="relative flex max-h-[calc(100vh-2rem)] flex-col gap-3 lg:h-[min(520px,calc(100vh-4rem))] lg:max-h-none lg:flex-row lg:items-stretch lg:gap-0">
+          <aside className="login-visual relative hidden w-full overflow-hidden rounded-[1.5rem] lg:block lg:w-[54%]">
+            <img
+              src="/convention-centre.png"
+              alt=""
+              className="login-bg-image absolute inset-0 h-full w-full object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#020617]/85 via-[#04122a]/30 to-transparent" />
+            <div className="login-visual-glow absolute inset-x-10 bottom-10 h-28 rounded-full bg-[#1a56c4]/35 blur-2xl" />
 
-        <div className="relative z-10 px-10">
-          <h1 className="text-[2rem] font-semibold leading-[1.25] text-white [font-family:var(--font-display)]">
-            National Investment Portfolio Management System
-          </h1>
-          <p className="mt-5 max-w-md text-[15px] leading-relaxed text-blue-100/75">
-            Secure portfolio oversight for government equity investments — provisioned
-            accounts only, with email verification and password protections.
-          </p>
-          <ul className="mt-8 space-y-3 text-sm text-blue-100/70">
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rw-yellow" aria-hidden />
-              SOE registry and portfolio monitoring
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rw-yellow" aria-hidden />
-              Structured reporting and approval workflows
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-rw-yellow" aria-hidden />
-              Role-based access for ministry and company users
-            </li>
-          </ul>
-        </div>
-
-        <div className="relative z-10 border-t border-white/10 px-10 py-6">
-          <p className="text-xs text-blue-200/45">
-            © 2026 Ministry of Finance and Economic Planning — Republic of Rwanda
-          </p>
-        </div>
-      </aside>
-
-      <main className="flex flex-1 items-center justify-center bg-page p-6 sm:p-10">
-        <div className="w-full max-w-[420px]">
-          <div className="mb-8 text-center lg:hidden">
-            <div className="mx-auto mb-4 flex w-fit items-center gap-3">
-              <RwandaFlag size="sm" className="rounded-lg" />
-              <div className="text-left">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-rw-blue">
-                  Republic of Rwanda
-                </p>
-                <p className="text-lg font-bold text-slate-900">NIPMS</p>
+            <div className="absolute inset-0 flex flex-col justify-between p-8 xl:p-10">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/20 ring-1 ring-white/25">
+                  <span className="text-base font-bold text-white [font-family:var(--font-display)]">N</span>
+                </span>
+                <div>
+                  <p className="text-base font-semibold tracking-[0.02em] text-white [font-family:var(--font-display)]">
+                    NIPMS
+                  </p>
+                  <p className="text-[11px] tracking-wide text-white/55">Investment Portfolio Platform</p>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex h-1" aria-hidden>
-              <div className="flex-1 bg-rw-blue" />
-              <div className="w-1/4 bg-rw-yellow" />
-              <div className="flex-1 bg-rw-green" />
-            </div>
+              <div className="max-w-sm">
+                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-[#fad201]">
+                  Kigali · Rwanda
+                </p>
+                <h1 className="mt-3 text-[2rem] font-semibold leading-[1.16] tracking-tight text-white [font-family:var(--font-display)] xl:text-[2.2rem]">
+                  Clarity for every investment decision
+                </h1>
+                <p className="mt-3.5 text-[15px] leading-relaxed text-white/70">
+                  Track holdings and monitor performance in one secure workspace.
+                </p>
+              </div>
 
-            <div className="p-7 sm:p-8">
+              <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-white/40">
+                We invite you to join our platform
+              </p>
+            </div>
+          </aside>
+
+          <main className="login-form-pane relative z-10 flex flex-1 flex-col justify-center overflow-hidden rounded-[1.5rem] px-6 py-6 sm:px-10 sm:py-9 lg:-ml-6 lg:px-12 lg:py-12 xl:px-14">
+            <div className="mx-auto w-full max-w-[320px]">
+              <div className="mb-6 flex items-center gap-3 sm:mb-8 lg:hidden">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#003da5] text-white">
+                  <span className="text-base font-bold [font-family:var(--font-display)]">N</span>
+                </span>
+                <div>
+                  <p className="text-base font-semibold tracking-[0.02em] text-slate-800 [font-family:var(--font-display)]">
+                    NIPMS
+                  </p>
+                  <p className="text-[11px] tracking-wide text-slate-500">Investment Portfolio Platform</p>
+                </div>
+              </div>
+
               {screen !== 'login' && screen !== 'verify' && (
                 <button
                   type="button"
                   onClick={goLogin}
-                  className="mb-4 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800"
+                  className="mb-5 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 transition-colors hover:text-slate-800"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> Back to sign in
                 </button>
               )}
 
-              <div className="mb-6">
-                <h2 className="text-2xl font-semibold text-slate-900 [font-family:var(--font-display)]">
+              <div className="mb-6 space-y-1.5 sm:mb-8">
+                <h2 className="text-[1.85rem] font-semibold tracking-tight text-slate-900 [font-family:var(--font-display)] sm:text-[2.1rem]">
                   {titles[screen].title}
                 </h2>
-                <p className="mt-1.5 text-sm text-slate-500">{titles[screen].subtitle}</p>
+                {titles[screen].subtitle && (
+                  <p className="text-sm leading-relaxed text-slate-500">{titles[screen].subtitle}</p>
+                )}
               </div>
 
               {error && (
-                <InlineAlert variant="danger" className="mb-4">
+                <InlineAlert variant="danger" className="mb-5">
                   {error}
                 </InlineAlert>
               )}
               {info && (
-                <InlineAlert variant="success" className="mb-4">
+                <InlineAlert variant="success" className="mb-5">
                   {info}
                 </InlineAlert>
               )}
 
               {screen === 'login' && (
-                <form onSubmit={handleLogin} className="space-y-5">
-                  <EmailField value={email} onChange={setEmail} />
-                  <PasswordField
+                <form onSubmit={handleLogin} className="space-y-6 sm:space-y-8">
+                  <LineField
+                    id="email"
+                    label="Email"
+                    type="email"
+                    value={email}
+                    onChange={setEmail}
+                    autoComplete="username"
+                    icon={<EnvelopeSimple className="h-4 w-4" weight="regular" />}
+                  />
+                  <LineField
                     id="password"
                     label="Password"
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={setPassword}
-                    show={showPassword}
-                    onToggle={() => setShowPassword((v) => !v)}
+                    autoComplete="current-password"
+                    icon={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="text-slate-500 transition hover:text-slate-800"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? (
+                          <EyeSlash className="h-4 w-4" />
+                        ) : (
+                          <Lock className="h-4 w-4" />
+                        )}
+                      </button>
+                    }
                   />
-                  <div className="flex justify-end">
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="login-submit mt-2 flex h-12 w-full items-center justify-center rounded-full text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loading ? 'Signing in…' : 'Login'}
+                  </button>
+
+                  <div className="flex items-center justify-between pt-1 text-xs text-slate-500">
+                    <span className="text-slate-400">Invitation only</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -297,56 +350,92 @@ export function Login({ onLogin }: LoginProps) {
                         setError('');
                         setInfo('');
                       }}
-                      className="text-xs font-medium text-rw-blue hover:underline"
+                      className="font-medium transition hover:text-slate-800"
                     >
                       Forgot password?
                     </button>
                   </div>
-                  <Button type="submit" disabled={loading} className="h-11 w-full">
-                    {loading ? 'Signing in…' : 'Sign In'}
-                  </Button>
                 </form>
               )}
 
               {screen === 'forgot' && (
-                <form onSubmit={handleForgot} className="space-y-5">
-                  <EmailField value={email} onChange={setEmail} />
-                  <Button type="submit" disabled={loading} className="h-11 w-full">
+                <form onSubmit={handleForgot} className="space-y-6 sm:space-y-8">
+                  <LineField
+                    id="email"
+                    label="Email"
+                    type="email"
+                    value={email}
+                    onChange={setEmail}
+                    autoComplete="username"
+                    icon={<EnvelopeSimple className="h-4 w-4" weight="regular" />}
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="login-submit flex h-12 w-full items-center justify-center rounded-full text-sm font-semibold text-white disabled:opacity-60"
+                  >
                     {loading ? 'Please wait…' : 'Send reset link'}
-                  </Button>
+                  </button>
                 </form>
               )}
 
               {screen === 'resend' && (
-                <form onSubmit={handleResend} className="space-y-5">
-                  <EmailField value={email} onChange={setEmail} />
-                  <Button type="submit" disabled={loading} className="h-11 w-full">
-                    {loading ? 'Please wait…' : 'Resend verification email'}
-                  </Button>
+                <form onSubmit={handleResend} className="space-y-6 sm:space-y-8">
+                  <LineField
+                    id="email"
+                    label="Email"
+                    type="email"
+                    value={email}
+                    onChange={setEmail}
+                    autoComplete="username"
+                    icon={<EnvelopeSimple className="h-4 w-4" weight="regular" />}
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="login-submit flex h-12 w-full items-center justify-center rounded-full text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {loading ? 'Please wait…' : 'Resend verification'}
+                  </button>
                 </form>
               )}
 
               {screen === 'reset' && (
-                <form onSubmit={handleReset} className="space-y-5">
-                  <PasswordField
+                <form onSubmit={handleReset} className="space-y-6 sm:space-y-8">
+                  <LineField
                     id="new-password"
                     label="New password"
+                    type={showPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={setNewPassword}
-                    show={showPassword}
-                    onToggle={() => setShowPassword((v) => !v)}
+                    autoComplete="new-password"
+                    icon={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="text-slate-500"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeSlash className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    }
                   />
-                  <PasswordField
+                  <LineField
                     id="confirm-password"
                     label="Confirm password"
+                    type={showPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={setConfirmPassword}
-                    show={showPassword}
-                    onToggle={() => setShowPassword((v) => !v)}
+                    autoComplete="new-password"
+                    icon={<Lock className="h-4 w-4" />}
                   />
-                  <Button type="submit" disabled={loading} className="h-11 w-full">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="login-submit flex h-12 w-full items-center justify-center rounded-full text-sm font-semibold text-white disabled:opacity-60"
+                  >
                     {loading ? 'Please wait…' : 'Update password'}
-                  </Button>
+                  </button>
                 </form>
               )}
 
@@ -355,96 +444,50 @@ export function Login({ onLogin }: LoginProps) {
                   {loading ? 'Confirming your email address…' : 'Verification complete.'}
                 </p>
               )}
-
-              {!info && screen === 'login' && (
-                <p className="mt-6 text-center text-xs text-slate-400">
-                  No public signup — accounts are provisioned by ministry administrators.
-                </p>
-              )}
             </div>
-          </div>
+          </main>
         </div>
-      </main>
-    </div>
-  );
-}
-
-function EmailField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <div>
-      <label
-        htmlFor="email"
-        className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500"
-      >
-        Official Email Address
-      </label>
-      <div className="relative">
-        <EnvelopeSimple
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-          aria-hidden
-        />
-        <input
-          id="email"
-          type="email"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="name@minecofin.gov.rw"
-          required
-          autoComplete="username"
-          className="block h-11 w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20"
-        />
       </div>
     </div>
   );
 }
 
-function PasswordField({
+function LineField({
   id,
   label,
+  type,
   value,
   onChange,
-  show,
-  onToggle,
+  autoComplete,
+  icon,
 }: {
   id: string;
   label: string;
+  type: string;
   value: string;
   onChange: (v: string) => void;
-  show: boolean;
-  onToggle: () => void;
+  autoComplete?: string;
+  icon: React.ReactNode;
 }) {
   return (
-    <div>
+    <div className="login-line-field">
       <label
         htmlFor={id}
-        className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500"
+        className="mb-2.5 block text-[13px] font-medium tracking-wide text-slate-600"
       >
         {label}
       </label>
-      <div className="relative">
-        <Lock
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
-          aria-hidden
-        />
+      <div className="relative flex items-center gap-2 border-b border-slate-800/25 transition-[border-color] focus-within:border-[#003da5]">
         <input
           id={id}
-          type={show ? 'text' : 'password'}
+          type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           required
-          autoComplete={
-            id.includes('new') || id.includes('confirm') ? 'new-password' : 'current-password'
-          }
-          className="block h-11 w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-11 text-sm text-slate-900 outline-none transition focus:border-rw-blue focus:ring-2 focus:ring-rw-blue/20"
+          autoComplete={autoComplete}
+          className="login-line-input min-w-0 flex-1 bg-transparent py-2.5 text-[15px] text-slate-900 outline-none placeholder:text-slate-400"
         />
-        <button
-          type="button"
-          onClick={onToggle}
-          className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600"
-          aria-label={show ? 'Hide password' : 'Show password'}
-        >
-          {show ? <EyeSlash className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-        </button>
+        <span className="shrink-0 text-slate-500">{icon}</span>
       </div>
     </div>
   );

@@ -9,7 +9,6 @@
     "seed": "tsx src/seed.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1086.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
@@ -20,6 +19,7 @@
     "multer": "^2.2.0",
     "nodemailer": "^9.0.3",
     "swagger-ui-express": "^5.0.1",
+    "tsx": "^4.19.3",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
@@ -30,7 +30,6 @@
     "@types/multer": "^2.2.0",
     "@types/nodemailer": "^8.0.1",
     "@types/swagger-ui-express": "^4.1.8",
-    "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }
 }

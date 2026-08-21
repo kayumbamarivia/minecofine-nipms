@@ -41,7 +41,6 @@ function formatSize(bytes: number) {
 export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
   const [docs, setDocs] = useState<StoredDocument[]>([]);
   const [busy, setBusy] = useState(false);
-  const [storageDriver, setStorageDriver] = useState<string>('local');
   const [companyId, setCompanyId] = useState(user.companyId ?? companies[0]?.id ?? '');
   const [name, setName] = useState('');
   const [category, setCategory] = useState<StoredDocumentCategory>('other');
@@ -52,7 +51,6 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
   const load = async () => {
     const res = await documentsApi.list(user.companyId ? undefined : companyId || undefined);
     setDocs(res.data);
-    if (res.storage?.driver) setStorageDriver(res.storage.driver);
   };
 
   useEffect(() => {
@@ -125,10 +123,7 @@ export function DocumentRegistry({ user, companies }: DocumentRegistryProps) {
         description="Store statutory and review attachments: registration documents, performance contracts, signed statements, board minutes and related files."
         meta={
           <p className="text-xs text-slate-500">
-            Object storage:{' '}
-            <span className="font-medium text-slate-700">
-              {storageDriver === 's3' ? 'MinIO / S3' : 'Local disk'}
-            </span>
+            Files are stored in MongoDB and follow the same database locally and in production.
           </p>
         }
       />

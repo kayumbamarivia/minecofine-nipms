@@ -4,8 +4,7 @@ Ministry of Finance and Economic Planning (MINECOFIN) — Republic of Rwanda
 
 ## Prerequisites
 - Node.js 20+
-- MongoDB 6+ running locally (or set `MONGODB_URI` in `server/.env`)
-- Optional: Docker (for MinIO object storage)
+- MongoDB 6+ running locally, or MongoDB Atlas (`MONGODB_URI` in `server/.env`)
 
 ## Setup
 
@@ -22,36 +21,11 @@ npm run dev
 - API: http://localhost:3001  
 - API documentation (Swagger): http://localhost:3001/api/docs  
 
-## Object storage (documents)
+## Documents
 
-**Recommendation:** use **MinIO** (S3-compatible) for ministry / shared environments; keep `STORAGE_DRIVER=local` for simple laptop development.
+Uploaded files are stored in MongoDB (GridFS). Point `MONGODB_URI` at Atlas and the same files are available locally and on Render — no MinIO or S3.
 
-| Driver | When to use |
-|--------|-------------|
-| `local` (default) | Files under `server/uploads` — no Docker needed |
-| `s3` | MinIO or AWS S3 — better for multi-server, backups, and production |
-
-### MinIO (optional)
-
-```bash
-docker compose up -d
-```
-
-Then in `server/.env`:
-
-```
-STORAGE_DRIVER=s3
-S3_ENDPOINT=http://127.0.0.1:9000
-S3_ACCESS_KEY=minioadmin
-S3_SECRET_KEY=minioadmin
-S3_BUCKET=nipms-documents
-S3_FORCE_PATH_STYLE=true
-```
-
-- MinIO console: http://127.0.0.1:9001  
-- API health reports the active driver: `GET /api/health` → `storage`
-
-Switching to AWS S3 later only needs endpoint/credentials changes — the app already speaks S3.
+API health reports storage: `GET /api/health` → `storage.driver = gridfs`
 
 ## Roles
 
@@ -77,7 +51,7 @@ Credentials use `BOOTSTRAP_PASSWORD` from `server/.env`.
 8. **Action points** — ministry follow-ups  
 9. **Ad hoc reporting** — company & portfolio summaries + CSV extract  
 
-Also live: **Document Registry** (local disk or MinIO/S3), **Excel/CSV financial statement import**, **User Administration** (ministry-provisioned accounts), **email verification** and **password reset**.
+Also live: **Document Registry** (files in MongoDB), **Excel/CSV financial statement import**, **User Administration** (ministry-provisioned accounts), **email verification** and **password reset**.
 
 ## Authentication model
 

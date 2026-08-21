@@ -30,6 +30,16 @@ async function seed() {
 
   await connectDatabase();
 
+  const existingUsers = await User.countDocuments();
+  if (existingUsers > 0 && process.env.FORCE_SEED !== 'true') {
+    console.log(
+      `Database already has ${existingUsers} user(s). Skipping seed so production data stays intact.`,
+    );
+    console.log('Set FORCE_SEED=true only if you intend to wipe and replace all NIPMS data.');
+    await disconnectDatabase();
+    return;
+  }
+
   await Promise.all([
     WorkflowEvent.deleteMany({}),
     Submission.deleteMany({}),

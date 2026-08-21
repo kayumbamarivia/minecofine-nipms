@@ -92,6 +92,3 @@ server/data/
 *.db
 *.db-shm
 *.db-wal
-
-# Uploaded files
-server/uploads/

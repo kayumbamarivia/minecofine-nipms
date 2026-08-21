@@ -24,7 +24,7 @@ export interface IDocument {
   mimeType: string;
   sizeBytes: number;
   storagePath: string;
-  storageDriver: 'local' | 's3';
+  storageDriver: 'gridfs';
   uploadedBy: Types.ObjectId;
   notes: string;
   createdAt: Date;
@@ -58,7 +58,7 @@ const documentSchema = new Schema<IDocument>(
     mimeType: { type: String, required: true },
     sizeBytes: { type: Number, required: true },
     storagePath: { type: String, required: true },
-    storageDriver: { type: String, enum: ['local', 's3'], default: 'local' },
+    storageDriver: { type: String, default: 'gridfs' },
     uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     notes: { type: String, default: '' },
   },

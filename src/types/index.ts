@@ -211,7 +211,7 @@ export interface StoredDocument {
   originalName: string;
   mimeType: string;
   sizeBytes: number;
-  storageDriver?: 'local' | 's3';
+  storageDriver?: 'gridfs';
   notes: string | null;
   uploadedBy: string;
   uploadedByName: string;

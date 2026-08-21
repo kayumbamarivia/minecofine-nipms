@@ -170,7 +170,7 @@ Same as tests 5 and 6, but use the **Annual Report** tab and enter a fiscal year
 1. Sidebar → **Document Registry**.
 2. Pick a category (e.g. Board minutes), give a title, choose a PDF → **Upload**.
 3. Click **Download** on the row — the file comes back.
-4. Note the small text showing storage: **Local disk** (or MinIO/S3 if configured).
+4. Files are stored in MongoDB, so they work the same locally and on Render.
 
 **You should see:** upload → appears in the table → downloads correctly. Company users only see their own company's folder.
 

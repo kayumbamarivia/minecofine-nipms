@@ -8,30 +8,38 @@ export interface OutboundEmail {
   html?: string;
 }
 
-function smtpConfigured() {
+export function isMailConfigured() {
   return Boolean(config.smtp.host && config.smtp.user && config.smtp.pass);
 }
 
 /**
- * Sends mail via SMTP when configured.
- * In local/dev without SMTP, logs the message (including action links) to the API console.
+ * Sends mail via SMTP when configured (same Gmail/Brevo/etc. locally and on Render).
+ * Without SMTP, logs the message — including action links — to the API console.
  */
-export async function sendEmail(message: OutboundEmail): Promise<{ delivered: boolean; mode: 'smtp' | 'console' }> {
+export async function sendEmail(
+  message: OutboundEmail,
+): Promise<{ delivered: boolean; mode: 'smtp' | 'console' }> {
   const from = `"${config.mailFromName}" <${config.mailFromAddress}>`;
+  const html = message.html ?? message.text.replace(/\n/g, '<br/>');
 
-  if (!smtpConfigured()) {
+  if (!isMailConfigured()) {
     console.log('\n========== NIPMS EMAIL (console delivery) ==========');
     console.log(`To: ${message.to}`);
     console.log(`Subject: ${message.subject}`);
     console.log(message.text);
     console.log('====================================================\n');
+    if (config.nodeEnv === 'production') {
+      console.warn(
+        'SMTP is not configured in production. Invite/reset emails will not reach inboxes.',
+      );
+    }
     return { delivered: true, mode: 'console' };
   }
 
   const transporter = nodemailer.createTransport({
     host: config.smtp.host,
     port: config.smtp.port,
-    secure: config.smtp.secure,
+    secure: config.smtp.secure || config.smtp.port === 465,
     auth: {
       user: config.smtp.user,
       pass: config.smtp.pass,
@@ -43,7 +51,7 @@ export async function sendEmail(message: OutboundEmail): Promise<{ delivered: bo
     to: message.to,
     subject: message.subject,
     text: message.text,
-    html: message.html ?? message.text.replace(/\n/g, '<br/>'),
+    html,
   });
 
   return { delivered: true, mode: 'smtp' };
