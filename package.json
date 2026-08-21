@@ -8,6 +8,7 @@
     "dev:web": "vite",
     "dev:api": "npm run dev --prefix server",
     "build": "vite build",
+    "render-build": "npm install --include=dev && vite build && npm install --prefix server",
     "db:seed": "npm run seed --prefix server"
   },
   "dependencies": {

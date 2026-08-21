@@ -42,7 +42,8 @@ Use the **same** `MONGODB_URI`, `JWT_SECRET`, `BOOTSTRAP_PASSWORD`, and SMTP val
 
 Production is **one** Render Web Service: it builds the Vite app and the Express API serves both the UI and `/api`.
 
-Build: `npm install && npm run build && npm install --prefix server`  
+Build: `npm run render-build`  
+(or `npm install --include=dev && npm run build && npm install --prefix server`)  
 Start: `npm start --prefix server`
 
 ## Roles
