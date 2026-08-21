@@ -55,6 +55,7 @@ export const openApiSpec = {
       'National Investment Portfolio Management System — Ministry of Finance and Economic Planning (MINECOFIN), Republic of Rwanda.\n\n' +
       'Government equity investment portfolio oversight: SOE registry, submission workflows (company → ministry → department), ' +
       'financial statements with automated ratios and red flags, action points, documents, and reporting.\n\n' +
+      'Documents are stored in MongoDB GridFS. Email is sent via SMTP when `SMTP_*` is set; otherwise links are printed in the API console.\n\n' +
       '**Authentication:** obtain a JWT via `POST /api/auth/login`, then click **Authorize** and paste the token.',
     contact: { name: 'MINECOFIN Portfolio Oversight' },
   },
@@ -67,7 +68,7 @@ export const openApiSpec = {
     { name: 'Submissions', description: 'Business process packages and the approval workflow' },
     { name: 'Dashboard', description: 'Aggregated portfolio metrics' },
     { name: 'Action Points', description: 'Ministry follow-ups raised against companies' },
-    { name: 'Documents', description: 'Company document folders (GridFS in MongoDB, or local disk / S3)' },
+    { name: 'Documents', description: 'Company document folders stored in MongoDB GridFS' },
     { name: 'Reports', description: 'Ad hoc reporting and CSV extracts' },
     { name: 'Imports', description: 'Excel/CSV financial statement import' },
   ],
@@ -308,7 +309,7 @@ export const openApiSpec = {
     '/api/health': {
       get: {
         tags: ['Health'],
-        summary: 'Service health and active storage driver',
+        summary: 'Service health, storage, and mail mode',
         responses: {
           200: {
             description: 'Service is up',
@@ -321,11 +322,18 @@ export const openApiSpec = {
                     service: { type: 'string', example: 'nipms-api' },
                     version: { type: 'string' },
                     environment: { type: 'string' },
+                    appUrl: { type: 'string', example: 'http://localhost:5173' },
                     storage: {
                       type: 'object',
                       properties: {
-                        driver: { type: 'string', enum: ['gridfs'] },
-                        bucket: { type: 'string', nullable: true },
+                        driver: { type: 'string', enum: ['gridfs'], example: 'gridfs' },
+                        bucket: { type: 'string', example: 'nipms_files' },
+                      },
+                    },
+                    mail: {
+                      type: 'object',
+                      properties: {
+                        mode: { type: 'string', enum: ['smtp', 'console'] },
                       },
                     },
                   },
@@ -951,12 +959,35 @@ export const openApiSpec = {
             description: 'Ministry users may filter; company users are always scoped to their own SOE',
           },
         ],
-        responses: { 200: jsonDataArray('#/components/schemas/StoredDocument') },
+        responses: {
+          200: {
+            description: 'Document list',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    data: { type: 'array', items: { $ref: '#/components/schemas/StoredDocument' } },
+                    storage: {
+                      type: 'object',
+                      properties: {
+                        driver: { type: 'string', enum: ['gridfs'] },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       post: {
         tags: ['Documents'],
         summary: 'Upload a document into a company folder',
-        description: 'Multipart form. Allowed: PDF, Office, CSV, text, images. Max 25 MB. Stored in MongoDB GridFS by default (shared across local and Render when using Atlas).',
+        description:
+          'Multipart form. Allowed: PDF, Office, CSV, text, images. Max 25 MB. ' +
+          'The file is stored in MongoDB GridFS in the same database as the rest of NIPMS ' +
+          '(local Mongo or Atlas). Download, preview, and delete use the same `/api/documents` routes.',
         security: bearerAuth,
         requestBody: {
           required: true,

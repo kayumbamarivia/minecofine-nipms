@@ -7,13 +7,15 @@ Every test says: **who to log in as → what to click → what you should see.**
 
 ## 0. Before you start (2 minutes)
 
-1. Make sure MongoDB is running.
+1. MongoDB is reachable: local Mongo **or** Atlas (`MONGODB_URI` in `server/.env`).
 2. In the project folder run:
 
 ```bash
-npm run db:seed     # resets data to a clean state
+npm run db:seed     # first time only; skipped if users already exist
 npm run dev         # starts web + API together
 ```
+
+To wipe and reload demo data: `FORCE_SEED=true` then `npm run db:seed` (this deletes existing NIPMS data).
 
 3. Open **http://localhost:5173** in the browser.
 
@@ -170,7 +172,7 @@ Same as tests 5 and 6, but use the **Annual Report** tab and enter a fiscal year
 1. Sidebar → **Document Registry**.
 2. Pick a category (e.g. Board minutes), give a title, choose a PDF → **Upload**.
 3. Click **Download** on the row — the file comes back.
-4. Files are stored in MongoDB, so they work the same locally and on Render.
+4. Files are stored in MongoDB GridFS (same database as the rest of the app). If you use Atlas, the file is already there for Render.
 
 **You should see:** upload → appears in the table → downloads correctly. Company users only see their own company's folder.
 
@@ -183,7 +185,7 @@ Same as tests 5 and 6, but use the **Annual Report** tab and enter a fiscal year
 1. Sidebar → **User Administration**.
 2. You see ALL accounts with role, company, active status, and email-verified status.
 3. Create a test user: name, email, role **Company Data Submitter**, pick a company → **Create & send invite**.
-4. **Without SMTP:** the invite (temporary password + verification link) is printed in the API terminal — and a toast shows the temporary password.
+4. **Without SMTP:** the invite (temporary password + verification link) is printed in the API terminal — and a toast shows the temporary password. **With SMTP:** the invite goes to the mailbox.
 5. Try **Deactivate** on the test user, then **Activate** again.
 
 **You should see:** no public signup exists — accounts are provisioned by the ministry, exactly per the RS.
@@ -228,8 +230,8 @@ Same as tests 5 and 6, but use the **Annual Report** tab and enter a fiscal year
 |---|---|
 | Page will not load | Check `npm run dev` is running (both web + api lines in terminal) |
 | "Invalid email or password" | Password is `ChangeMeSecurely1` — check caps |
-| Data looks messy from rehearsal | Run `npm run db:seed` again → clean state (deletes your test data) |
+| Data looks messy from rehearsal | From `server/`: `FORCE_SEED=true` then `npm run seed` (this **wipes** NIPMS data). A plain `npm run db:seed` will skip if users already exist |
 | Port 3001 already in use | Close old terminals, restart `npm run dev` |
 | API errors after editing `.env` | Restart `npm run dev` |
 
-**Golden rule:** rehearse the full loop once (tests 5 + 6) right before presenting, then reseed if you want a clean start.
+**Golden rule:** rehearse the full loop once (tests 5 + 6) right before presenting. To reset demo data, use `FORCE_SEED=true` then seed — a plain seed will not wipe Atlas.

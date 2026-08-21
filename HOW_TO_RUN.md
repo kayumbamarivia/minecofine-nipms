@@ -12,7 +12,7 @@ Ministry of Finance and Economic Planning (MINECOFIN) — Republic of Rwanda
 npm install
 npm install --prefix server
 cp server/.env.example server/.env
-# Edit JWT_SECRET and BOOTSTRAP_PASSWORD
+# Set MONGODB_URI (local Mongo or Atlas), JWT_SECRET, BOOTSTRAP_PASSWORD, and SMTP if you want real email
 npm run db:seed
 npm run dev
 ```
@@ -21,11 +21,29 @@ npm run dev
 - API: http://localhost:3001  
 - API documentation (Swagger): http://localhost:3001/api/docs  
 
+`npm run db:seed` creates the initial SOE registry and five accounts. If the database already has users, seed **does nothing** (so Atlas/production data is not wiped). To replace everything, set `FORCE_SEED=true` then seed again.
+
 ## Documents
 
-Uploaded files are stored in MongoDB (GridFS). Point `MONGODB_URI` at Atlas and the same files are available locally and on Render — no MinIO or S3.
+Uploaded files are stored in MongoDB GridFS in the same database as companies and users. There is no MinIO, S3, or local `uploads` folder. If `MONGODB_URI` points at Atlas, files uploaded locally are already available on Render.
 
-API health reports storage: `GET /api/health` → `storage.driver = gridfs`
+`GET /api/health` reports `storage.driver = gridfs` and `mail.mode` (`smtp` or `console`).
+
+## Environments (local and Render)
+
+Use the **same** `MONGODB_URI`, `JWT_SECRET`, `BOOTSTRAP_PASSWORD`, and SMTP values locally and on Render.
+
+| Local (`server/.env`) | Render (Web Service env) |
+|---|---|
+| `NODE_ENV=development` | `NODE_ENV=production` |
+| `PORT=3001` | omit (`PORT` is set by Render) |
+| `APP_URL=http://localhost:5173` | omit (uses the live Render URL) |
+| `CORS_ORIGINS` optional | omit |
+
+Production is **one** Render Web Service: it builds the Vite app and the Express API serves both the UI and `/api`.
+
+Build: `npm install && npm run build && npm install --prefix server`  
+Start: `npm start --prefix server`
 
 ## Roles
 
@@ -65,8 +83,8 @@ Also live: **Document Registry** (files in MongoDB), **Excel/CSV financial state
 - Temporary passwords force a change on first successful session.
 
 ```
-APP_URL=http://localhost:5173
-# Optional SMTP — leave empty for console delivery in local development
+# Optional SMTP — same values locally and on Render.
+# Leave empty for console delivery (links printed in the API terminal).
 SMTP_HOST=
 SMTP_USER=
 SMTP_PASS=
